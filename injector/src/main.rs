@@ -3,6 +3,7 @@ use std::os::windows::io::AsRawHandle;
 use std::path::PathBuf;
 use std::process::Command;
 
+use anyhow::{Context, Result, bail};
 use clap::Parser;
 use dll_syringe::{Syringe, process::OwnedProcess};
 use windows::Win32::Foundation::{HANDLE, WAIT_FAILED, WAIT_TIMEOUT};
@@ -14,42 +15,40 @@ struct Cli {
     game: PathBuf,
 }
 
-fn main() {
-    // TODO: remove unwraps, excepts and use results
+fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    let game_path = fs::canonicalize(cli.game).unwrap();
-    let parent = game_path.parent().unwrap();
+    let game_path = fs::canonicalize(cli.game)?;
+    let parent = game_path
+        .parent()
+        .with_context(|| format!("Cannot find parent of {:?}", game_path))?;
 
     if !game_path.is_file() {
-        // TODO: error handling
         // TODO: check if it's a correct .exe file with maybe a .win in the same folder
         // TODO: add maybe some more checks
-        panic!("Not a valid exe {:#?}", game_path);
+        bail!("Not a valid exe {:#?}", game_path);
     }
 
     // copy dll into the game folder
-    // TODO: not hardcoded
-    let dll = parent.join("hook.dll");
-    fs::copy("target/debug/hook.dll", &dll).unwrap();
+    let dll_src = std::env::current_exe()?
+        .parent()
+        .with_context(|| "Cannot find parent of the current exe")?
+        .join("hook.dll");
+    let dll_dst = parent.join("hook.dll");
+    println!("Copying from {:?} to {:?}", dll_src, dll_dst);
+    fs::copy(dll_src, &dll_dst)?;
 
     // launch game
-    let Ok(child) = Command::new(&game_path)
-        .current_dir(parent)
-        .spawn()
-    else {
-        // TODO: error handling
-        panic!("Cannot launch {:#?}", game_path);
-    };
+    let child = Command::new(&game_path).current_dir(parent).spawn()?;
 
     // get process
-    let process: OwnedProcess = OwnedProcess::from_pid(child.id()).expect("game is not running");
+    let process: OwnedProcess = OwnedProcess::from_pid(child.id())?;
     let syringe = Syringe::for_process(process);
 
     // wait for process to be initialized
     let wait = unsafe { WaitForInputIdle(HANDLE(child.as_raw_handle() as _), 30_000) };
     if wait == WAIT_FAILED.0 {
-        panic!("wait failed");
+        bail!("wait failed");
     } else if wait == WAIT_TIMEOUT.0 {
         println!("wait stopped because of timeout");
     } else if wait == 0 {
@@ -57,6 +56,10 @@ fn main() {
     }
 
     // inject
-    syringe.inject(dll).expect("injection failed");
+    let injected_module = syringe.inject(dll_dst)?;
     println!("injected");
+
+    // set log folder
+
+    Ok(())
 }

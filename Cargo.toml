@@ -1,6 +1,7 @@
 [workspace]
-members = ["hook", "injector"]
+members = ["hook", "injector", "xtask"]
 resolver = "3"
+default-members = ["injector"]
 
 [profile.release]
 # catch_unwind rely on it
