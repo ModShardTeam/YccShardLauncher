@@ -1,0 +1,7 @@
+[workspace]
+members = ["hook", "injector"]
+resolver = "3"
+
+[profile.release]
+# catch_unwind rely on it
+panic = "unwind"
