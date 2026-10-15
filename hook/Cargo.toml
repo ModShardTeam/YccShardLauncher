@@ -19,3 +19,6 @@ windows = { version = "0.62.2", features = [
 serde_json = "1.0"
 seq-macro = "0.3.6"
 anyhow = "1.0.104"
+dll-syringe = { version = "0.18.2", features = [
+    "payload-utils"
+] }

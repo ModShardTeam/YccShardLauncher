@@ -15,6 +15,8 @@ struct Cli {
     game: PathBuf,
 }
 
+const DLL_NAME: &str = "hook.dll";
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
@@ -33,8 +35,11 @@ fn main() -> Result<()> {
     let dll_src = std::env::current_exe()?
         .parent()
         .with_context(|| "Cannot find parent of the current exe")?
-        .join("hook.dll");
-    let dll_dst = parent.join("hook.dll");
+        .join(DLL_NAME);
+    let dll_dst = parent.join(DLL_NAME);
+    let log_dir = parent
+        .to_str()
+        .with_context(|| format!("Couldnt parse {:?} to string", parent))?;
     println!("Copying from {:?} to {:?}", dll_src, dll_dst);
     fs::copy(dll_src, &dll_dst)?;
 
@@ -60,6 +65,14 @@ fn main() -> Result<()> {
     println!("injected");
 
     // set log folder
+    let remote_init = unsafe {
+        syringe.get_payload_procedure::<fn(String) -> Result<(), String>>(injected_module, "init")
+    }?
+    .context(format!("{:?} has no `init` export", DLL_NAME))?;
+    if let Err(e) = remote_init.call(&log_dir.to_string())? {
+        bail!(e);
+    }
+    println!("init called");
 
     Ok(())
 }
