@@ -15,6 +15,11 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 #[dll_syringe::payload_procedure]
+fn hook_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[dll_syringe::payload_procedure]
 fn init(log_folder: String) -> Result<(), String> {
     let mut log_path = PathBuf::new();
     log_path.push(log_folder);

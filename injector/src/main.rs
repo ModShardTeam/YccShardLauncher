@@ -64,11 +64,23 @@ fn main() -> Result<()> {
     let injected_module = syringe.inject(dll_dst)?;
     println!("injected");
 
+    // check version
+    let remote_version = unsafe {
+        syringe.get_payload_procedure::<fn() -> String>(injected_module, "hook_version")
+    }?
+    .context(format!("{:?} has no 'hook_version' export", DLL_NAME))?;
+    let hook_version = remote_version.call()?;
+    let injector_version = env!("CARGO_PKG_VERSION").to_string();
+
+    if injector_version != hook_version {
+        bail!("Mismatched version, injector is {:?} hook is {:?}", injector_version, hook_version)
+    }
+
     // set log folder
     let remote_init = unsafe {
         syringe.get_payload_procedure::<fn(String) -> Result<(), String>>(injected_module, "init")
     }?
-    .context(format!("{:?} has no `init` export", DLL_NAME))?;
+    .context(format!("{:?} has no 'init' export", DLL_NAME))?;
     if let Err(e) = remote_init.call(&log_dir.to_string())? {
         bail!(e);
     }
