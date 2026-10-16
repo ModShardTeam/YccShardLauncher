@@ -1,11 +1,16 @@
 [workspace]
 members = ["hook", "injector", "xtask"]
 resolver = "3"
-default-members = ["hook", "injector"]
 
 [workspace.package]
 version = "0.1.0"
+edition = "2024"
 
 [profile.release]
 # catch_unwind rely on it
 panic = "unwind"
+
+[workspace.lints.rust]
+dead_code = "allow"
+
+[workspace.lints.clippy]

@@ -22,3 +22,6 @@ anyhow = "1.0.104"
 dll-syringe = { version = "0.18.2", features = [
     "payload-utils"
 ] }
+
+[lints]
+workspace = true

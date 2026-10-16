@@ -1,7 +1,7 @@
 [package]
 name = "injector"
-edition = "2024"
 version.workspace = true
+edition.workspace = true
 
 [dependencies]
 clap = { version = "4.6.7", features = ["derive"] }
@@ -11,3 +11,6 @@ windows = { version = "0.62.2", features = [
     "Win32_Foundation",
 ] }
 anyhow = "1.0.104"
+
+[lints]
+workspace = true

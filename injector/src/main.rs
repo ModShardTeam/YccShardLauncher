@@ -73,7 +73,11 @@ fn main() -> Result<()> {
     let injector_version = env!("CARGO_PKG_VERSION").to_string();
 
     if injector_version != hook_version {
-        bail!("Mismatched version, injector is {:?} hook is {:?}", injector_version, hook_version)
+        bail!(
+            "Mismatched version, injector is {:?} hook is {:?}",
+            injector_version,
+            hook_version
+        )
     }
 
     // set log folder
