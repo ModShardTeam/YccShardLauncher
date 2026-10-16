@@ -121,7 +121,7 @@ fn run() -> Result<()> {
         syringe
             .get_payload_procedure::<fn() -> (String, Option<String>)>(injected_module, "hook_info")
     }?
-    .with_context(|| format!("{:?} has no 'hook_info' export", DLL_NAME))?;
+    .with_context(|| format!("{} has no 'hook_info' export", DLL_NAME))?;
     let (hook_version, hook_hash) = remote_info.call()?;
     let injector_version = env!("CARGO_PKG_VERSION").to_string();
     let injector_hash = option_env!("GIT_HASH").map(str::to_string);
@@ -148,7 +148,7 @@ fn run() -> Result<()> {
     let remote_init = unsafe {
         syringe.get_payload_procedure::<fn(String) -> Result<(), String>>(injected_module, "init")
     }?
-    .with_context(|| format!("{:?} has no 'init' export", DLL_NAME))?;
+    .with_context(|| format!("{} has no 'init' export", DLL_NAME))?;
     if let Err(e) = remote_init.call(&log_dir.to_string())? {
         bail!(e);
     }
