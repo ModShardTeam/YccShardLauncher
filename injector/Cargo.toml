@@ -11,6 +11,8 @@ windows = { version = "0.62.2", features = [
     "Win32_Foundation",
 ] }
 anyhow = "1.0.104"
+anstream = "1.0.0"
+anstyle = "1.0.14"
 
 [lints]
 workspace = true

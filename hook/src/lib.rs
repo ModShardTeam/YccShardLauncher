@@ -15,8 +15,11 @@ use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use windows::Win32::System::SystemServices::DLL_PROCESS_ATTACH;
 
 #[dll_syringe::payload_procedure]
-fn hook_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
+fn hook_info() -> (String, Option<String>) {
+    (
+        env!("CARGO_PKG_VERSION").to_string(),
+        option_env!("GIT_HASH").map(str::to_string),
+    )
 }
 
 #[dll_syringe::payload_procedure]

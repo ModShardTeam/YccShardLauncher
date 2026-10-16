@@ -17,13 +17,25 @@ fn main() -> Result<()> {
     let main_dir = env!("CARGO_WORKSPACE_DIR");
     let cargo = std::env::var("CARGO").context("run this through cargo xtask")?;
 
-    let status = Command::new(cargo)
+    let git_output = Command::new("git")
+        .args(["describe", "--always", "--dirty"])
+        .current_dir(main_dir)
+        .output()?;
+
+    if !git_output.status.success() {
+        bail!("getting git hash failed with status {}", git_output.status);
+    }
+
+    let git_hash = String::from_utf8(git_output.stdout)?.trim().to_string();
+
+    let build_status = Command::new(cargo)
         .args(["build", "--release", "-p", "hook", "-p", "injector"])
         .current_dir(main_dir)
+        .env("GIT_HASH", &git_hash)
         .status()?;
 
-    if !status.success() {
-        bail!("build failed with status {}", status);
+    if !build_status.success() {
+        bail!("build failed with status {}", build_status);
     }
 
     let zip_dir = PathBuf::from(main_dir).join("bin");
