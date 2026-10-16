@@ -61,6 +61,7 @@ extern "C" fn dispatch<const N: usize>(
     a4: usize,
 ) {
     let s = &SLOTS[N];
+    #[allow(clippy::unnecessary_fold)]
     let run = std::panic::catch_unwind(AssertUnwindSafe(|| {
         s.prefixes
             .read()

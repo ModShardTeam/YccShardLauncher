@@ -2,3 +2,10 @@
 name = "xtask"
 edition = "2024"
 version.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+zip = "9.0.4"
+anyhow = "1.0.104"
