@@ -14,7 +14,11 @@ use windows::Win32::System::Threading::WaitForInputIdle;
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
 struct Cli {
+    #[arg(short, long)]
     game: PathBuf,
+    /// kill the game after a successful init, for testing
+    #[arg(short, long)]
+    kill: bool,
 }
 
 struct ChildGuard {
@@ -150,11 +154,13 @@ fn run() -> Result<()> {
     }?
     .with_context(|| format!("{} has no 'init' export", DLL_NAME))?;
     if let Err(e) = remote_init.call(&log_dir.to_string())? {
-        bail!(e);
+        bail!("init failed with `{}`", e);
     }
     println!("{MSG_STYLE}DLL Init called with success{MSG_STYLE:#}");
 
-    child.disarm();
+    if !cli.kill {
+        child.disarm();
+    }
     Ok(())
 }
 

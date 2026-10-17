@@ -46,3 +46,13 @@ pub unsafe fn write_f64(addr: pe_structs::Va, v: f64) -> Result<()> {
     }
     Ok(())
 }
+
+pub fn patch_constant(filename: &str, old: f64, new: f64) -> Result<()> {
+    let va =
+        find_imm64(filename, old).with_context(|| format!("Error finding a constant: {}", old))?;
+    (unsafe {
+        write_f64(va, new).with_context(|| format!("Error overwriting a constant: {}", new))
+    })?;
+
+    Ok(())
+}

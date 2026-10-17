@@ -1,7 +1,8 @@
 #[macro_use]
 mod logger;
+mod adapter;
 mod hooks;
-mod mods;
+mod mods_example;
 mod patch;
 mod pe_parser;
 mod pe_structs;
@@ -10,8 +11,11 @@ mod utils;
 mod yyc_structs;
 
 use anyhow::{Context, Result, bail};
-use std::path::PathBuf;
+use rhai::{CallFnOptions, Engine, Scope};
+use std::{path::PathBuf, sync::OnceLock};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
+
+static ENGINE: OnceLock<Engine> = OnceLock::new();
 
 #[dll_syringe::payload_procedure]
 fn hook_info() -> (String, Option<String>) {
@@ -24,6 +28,10 @@ fn hook_info() -> (String, Option<String>) {
 fn init_inner(log_folder: String) -> Result<()> {
     if logger::FOLDER.set(PathBuf::from(log_folder)).is_err() {
         bail!("Couldnt set the log folder");
+    }
+
+    if ENGINE.set(adapter::create_engine()).is_err() {
+        bail!("Couldnt set rhai engine");
     }
 
     log!("--- new session ---");
@@ -50,19 +58,46 @@ fn init_inner(log_folder: String) -> Result<()> {
     .context("exporting fn table")?;
 
     if symbols::VARS.set(vars).is_err() {
-        bail!("Couldnt set vars map");
+        bail!("couldnt set vars map");
     }
     if symbols::FNS.set(fns).is_err() {
-        bail!("Couldnt set fns map");
+        bail!("couldnt set fns map");
     }
 
-    // Add a postfix
-    // TODO: improve syntax so install / add_* is not done manually
-    // let slot = (unsafe { hooks::install("gml_Object_o_player_Step_2") })?;
-    // slot.add_postfix(Box::new(mods::my_step));
+    // TODO: remove this example
+    let example_script = "fn load(mod) {
+    patch_constant(\"gml_Object_o_player_Step_0\", 250.0, 10.0);
+    patch_constant(\"gml_Object_o_player_Step_0\", 30.0, 60.0);
+}";
 
-    // Add a constant patch
-    mods::my_constant_patch();
+    let engine = ENGINE.get().context("getting rhai engine")?;
+    let loader = adapter::Loader::new("test mod");
+
+    let mod_ast = engine.compile(example_script)?;
+    if mod_ast
+        .iter_functions()
+        .any(|f| f.name == "load" && f.params.len() == 1)
+    {
+        let options = CallFnOptions::new().eval_ast(false);
+        let result = engine.call_fn_with_options::<()>(
+            options,
+            &mut Scope::new(),
+            &mod_ast,
+            "load",
+            (loader.clone(),),
+        );
+        loader.deactivate();
+        if let Err(e) = result {
+            log!("mod {}: load failed {e:#}", loader.get_name());
+        } else {
+            log!("mod {}: load succeeded", loader.get_name());
+        }
+    } else {
+        log!(
+            "mod {}: load function not found, cant apply mod",
+            loader.get_name()
+        );
+    }
 
     log!("hook enabled");
     Ok(())

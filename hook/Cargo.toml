@@ -22,6 +22,7 @@ anyhow = "1.0.104"
 dll-syringe = { version = "0.18.2", features = [
     "payload-utils"
 ] }
+rhai = { version = "1.26.1", features = ["serde", "sync", "no_module"] }
 
 [lints]
 workspace = true

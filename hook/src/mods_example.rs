@@ -11,16 +11,3 @@ pub fn my_step(this: *mut c_void, _other: *mut c_void) {
         log!("{:#?}", e)
     }
 }
-
-pub fn my_constant_patch() {
-    match patch::find_imm64("gml_Object_o_player_Step_0", 250.0) {
-        Ok(a) => {
-            unsafe {
-                if let Err(e) = patch::write_f64(a, 10.0) {
-                    log!("Error overwriting a constant: {}", e);
-                }
-            };
-        }
-        Err(e) => log!("xp patch disabled: {e}"),
-    }
-}
