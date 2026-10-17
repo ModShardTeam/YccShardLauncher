@@ -12,7 +12,7 @@ use crate::patch;
 pub struct Loader(Arc<LoaderState>);
 
 #[derive(Debug)]
-pub struct LoaderState {
+struct LoaderState {
     mod_name: String,
     active: AtomicBool,
 }
@@ -25,8 +25,8 @@ impl Loader {
         }))
     }
 
-    pub fn get_name(&self) -> String {
-        self.0.mod_name.clone()
+    pub fn get_name(&self) -> &str {
+        &self.0.mod_name
     }
 
     pub fn deactivate(&self) {

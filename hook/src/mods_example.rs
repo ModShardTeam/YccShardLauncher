@@ -1,4 +1,4 @@
-use crate::{patch, symbols, utils};
+use crate::{symbols, utils};
 use std::ffi::c_void;
 
 pub fn my_step(this: *mut c_void, _other: *mut c_void) {
