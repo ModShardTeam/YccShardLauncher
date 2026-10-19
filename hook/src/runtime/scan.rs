@@ -131,7 +131,7 @@ const GML_PREFIXES: [&str; 4] = [
 
 // SAFETY: the module stays loaded, we can give the static lifetime
 fn read_name(rdata: &image::Section, ptr: addr::Va) -> Result<&'static str, NameRejection> {
-    if !image::in_section(rdata, ptr) {
+    if !rdata.contains(ptr) {
         return Err(NameRejection::OutOfBounds);
     }
     let max = min(rdata.start + rdata.len - ptr, MAX_SIZE_GML_NAME);
@@ -189,10 +189,10 @@ fn fn_entry_at(
     // cursor is guaranteed to be inside .data
     unsafe {
         let entry = *(cursor.as_ptr::<layout::YYCFn>());
-        if !image::in_section(text, addr::Va(entry.func)) {
+        if !text.contains(addr::Va(entry.func)) {
             return Err(FnEntryRejection::FuncNotInText);
         }
-        if !image::in_section(data, addr::Va(entry.slot_ptr)) {
+        if !data.contains(addr::Va(entry.slot_ptr)) {
             return Err(FnEntryRejection::SlotNotInData);
         }
 

@@ -29,7 +29,6 @@ pub fn find_imm64(func_name: &str, old: f64) -> Result<addr::Va> {
     let mut pat: [u8; INSTRUCTION_LEN] =
         [0x48u8, 0xB8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00];
     pat[2..].copy_from_slice(&old.to_bits().to_le_bytes());
-    dump!(&pat);
 
     let hits: Vec<usize> = code
         .windows(INSTRUCTION_LEN)

@@ -18,6 +18,12 @@ pub struct Section {
     pub start: addr::Va,
 }
 
+impl Section {
+    pub fn contains(&self, cursor: addr::Va) -> bool {
+        cursor >= self.start && cursor < self.start + self.len
+    }
+}
+
 // SAFETY: the module stays loaded, we can give the static lifetime
 // TODO: use PeView from pelite instead
 pub fn get_nt_header(base: addr::Va) -> Result<&'static IMAGE_NT_HEADERS64> {
@@ -60,10 +66,6 @@ pub fn sections(base: addr::Va) -> Result<Vec<Section>> {
             }
         })
         .collect())
-}
-
-pub fn in_section(s: &Section, cursor: addr::Va) -> bool {
-    cursor >= s.start && cursor < s.start + s.len
 }
 
 pub fn find_section<'a>(secs: &'a [Section], name: &str) -> Result<&'a Section> {
