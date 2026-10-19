@@ -1,6 +1,5 @@
 use std::fmt::Write as _;
 use std::io::Write as _;
-use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -12,6 +11,7 @@ macro_rules! log {
     };
 }
 
+#[allow(unused_macros, reason = "used for debugging")]
 macro_rules! dump {
     ($e: expr) => {
         log!("{}", crate::logger::hex_dump($e))
@@ -25,12 +25,13 @@ pub fn log(msg: &str) {
     if let Ok(mut f) = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
-        .open(Path::new(folder).join("hook.log"))
+        .open(folder.join("hook.log"))
     {
         let _ = writeln!(f, "{msg}");
     }
 }
 
+#[allow(dead_code, reason = "used for debugging")]
 pub fn hex_dump(data: &[u8]) -> String {
     let mut str = String::new();
     for b in data {

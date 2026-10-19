@@ -958,7 +958,6 @@ dependencies = [
  "num-traits",
  "once_cell",
  "rhai_codegen",
- "serde",
  "smallvec",
  "smartstring",
  "thin-vec",
@@ -1039,7 +1038,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4148590afebada386688f18773da617792bf2ef03ffc1e4cbd2b1d45b023e0ba"
 dependencies = [
  "serde_core",
- "serde_derive",
 ]
 
 [[package]]
@@ -1139,9 +1137,6 @@ name = "smallvec"
 version = "1.16.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5b3dc8af474f516a851ff4bd12db780f948b9250ad37211e4eec0bccea54e01b"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "smartstring"

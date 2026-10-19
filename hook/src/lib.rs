@@ -97,7 +97,7 @@ fn init_inner(log_folder: String) -> Result<()> {
         );
         loader.deactivate();
         if let Err(e) = result {
-            log!("mod {:?}: load failed {e:#}", loader.get_name());
+            log!("mod {:?}: load failed: {e:#}", loader.get_name());
         } else {
             loader.apply(engine, Arc::new(ast))?;
             log!("mod {:?}: load succeeded", loader.get_name());

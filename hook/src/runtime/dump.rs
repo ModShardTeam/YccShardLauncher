@@ -1,4 +1,4 @@
-use std::{collections::BTreeMap, path::Path};
+use std::collections::BTreeMap;
 
 use anyhow::{Context, Result};
 
@@ -23,6 +23,6 @@ pub fn export_symbol_table<'a>(
             .collect::<BTreeMap<_, _>>(),
     )?;
 
-    std::fs::write(Path::new(folder).join(file), msg)
+    std::fs::write(folder.join(file), msg)
         .with_context(|| format!("Writing table in {} failed", file))
 }

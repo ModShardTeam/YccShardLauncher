@@ -7,11 +7,11 @@ use windows::Win32::System::{
     Threading::GetCurrentProcess,
 };
 
-pub fn patch_constant(filename: &str, old: f64, new: f64) -> Result<()> {
-    let va =
-        find_imm64(filename, old).with_context(|| format!("Error finding a constant: {}", old))?;
+pub fn patch_constant(func_name: &str, old: f64, new: f64) -> Result<()> {
+    let va = find_imm64(func_name, old)
+        .with_context(|| format!("error in {} finding {}", func_name, old))?;
     (unsafe {
-        write_f64(va, new).with_context(|| format!("Error overwriting a constant: {}", new))
+        write_f64(va, new).with_context(|| format!("error in {} overwriting {}", func_name, new))
     })?;
 
     Ok(())
@@ -19,7 +19,7 @@ pub fn patch_constant(filename: &str, old: f64, new: f64) -> Result<()> {
 
 pub fn find_imm64(func_name: &str, old: f64) -> Result<addr::Va> {
     let func = symbols::get_function_address(func_name)
-        .with_context(|| format!("Cant find function {}", func_name))?;
+        .with_context(|| format!("cannot find function {}", func_name))?;
     let code =
         unsafe { std::slice::from_raw_parts(func.start.as_ptr::<u8>(), func.end - func.start) };
 
@@ -38,7 +38,12 @@ pub fn find_imm64(func_name: &str, old: f64) -> Result<addr::Va> {
         .collect();
     match hits.as_slice() {
         [i] => Ok(func.start + *i + 2),
-        h => bail!("expected 1 match for {old}, found {}", h.len()),
+        h => bail!(
+            "in {} expected 1 match for {}, found {}",
+            func_name,
+            old,
+            h.len()
+        ),
     }
 }
 
