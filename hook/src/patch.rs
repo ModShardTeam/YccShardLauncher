@@ -1,16 +1,25 @@
+use crate::pe::addr;
+use crate::runtime::symbols;
 use anyhow::{Context, Result, bail};
-use windows::Win32::System::Diagnostics::Debug::FlushInstructionCache;
-use windows::Win32::System::Memory::{
-    PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, VirtualProtect,
+use windows::Win32::System::{
+    Diagnostics::Debug::FlushInstructionCache,
+    Memory::{PAGE_EXECUTE_READWRITE, PAGE_PROTECTION_FLAGS, VirtualProtect},
+    Threading::GetCurrentProcess,
 };
-use windows::Win32::System::Threading::GetCurrentProcess;
 
-use crate::pe_structs;
-use crate::symbols;
+pub fn patch_constant(func_name: &str, old: f64, new: f64) -> Result<()> {
+    let va = find_imm64(func_name, old)
+        .with_context(|| format!("error in {} finding {}", func_name, old))?;
+    (unsafe {
+        write_f64(va, new).with_context(|| format!("error in {} overwriting {}", func_name, new))
+    })?;
 
-pub fn find_imm64(func_name: &str, old: f64) -> Result<pe_structs::Va> {
+    Ok(())
+}
+
+pub fn find_imm64(func_name: &str, old: f64) -> Result<addr::Va> {
     let func = symbols::get_function_address(func_name)
-        .with_context(|| format!("Cant find function {}", func_name))?;
+        .with_context(|| format!("cannot find function {}", func_name))?;
     let code =
         unsafe { std::slice::from_raw_parts(func.start.as_ptr::<u8>(), func.end - func.start) };
 
@@ -29,14 +38,19 @@ pub fn find_imm64(func_name: &str, old: f64) -> Result<pe_structs::Va> {
         .collect();
     match hits.as_slice() {
         [i] => Ok(func.start + *i + 2),
-        h => bail!("expected 1 match for {old}, found {}", h.len()),
+        h => bail!(
+            "in {} expected 1 match for {}, found {}",
+            func_name,
+            old,
+            h.len()
+        ),
     }
 }
 
 /// # Safety
 ///
 /// addr has to be the location of a constant found thanks to find_imm64, addr points to 8 bytes of code that can safely be overwritten
-pub unsafe fn write_f64(addr: pe_structs::Va, v: f64) -> Result<()> {
+pub unsafe fn write_f64(addr: addr::Va, v: f64) -> Result<()> {
     let mut prev = PAGE_PROTECTION_FLAGS(0);
     unsafe {
         VirtualProtect(addr.as_ptr(), 8, PAGE_EXECUTE_READWRITE, &mut prev)?;

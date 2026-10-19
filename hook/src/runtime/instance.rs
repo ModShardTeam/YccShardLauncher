@@ -1,9 +1,6 @@
-use std::{collections::HashMap, ffi::c_void};
+use std::{collections::HashMap, error::Error, ffi::c_void, fmt};
 
-use crate::{
-    pe_structs::Va,
-    yyc_structs::{Kind, VarGetter, YYCVal},
-};
+use crate::{pe::addr, runtime::layout};
 
 pub enum Variant {
     Real(f64),
@@ -11,33 +8,31 @@ pub enum Variant {
     Bool(bool),
 }
 
-impl From<&Variant> for YYCVal {
+impl From<&Variant> for layout::YYCVal {
     fn from(var: &Variant) -> Self {
         match var {
-            Variant::Real(v) => YYCVal {
+            Variant::Real(v) => layout::YYCVal {
                 value: v.to_bits(),
                 flags: 0,
-                kind: Kind::Real as u32,
+                kind: layout::Kind::Real as u32,
             },
-            Variant::Undefined => YYCVal {
+            Variant::Undefined => layout::YYCVal {
                 value: 0u64,
                 flags: 0,
-                kind: Kind::Undefined as u32,
+                kind: layout::Kind::Undefined as u32,
             },
-            Variant::Bool(v) => YYCVal {
+            Variant::Bool(v) => layout::YYCVal {
                 value: if *v {
                     1.0f64.to_bits()
                 } else {
                     0.0f64.to_bits()
                 },
                 flags: 0,
-                kind: Kind::Bool as u32,
+                kind: layout::Kind::Bool as u32,
             },
         }
     }
 }
-
-const VAR_MUT_GETTER_VTABLE_IDX: usize = 2;
 
 #[derive(Debug)]
 pub enum VarRejection {
@@ -45,10 +40,28 @@ pub enum VarRejection {
     IdNotReady,
     NullObject,
     NullVar,
-    IncompatibleKind,
+    IncompatibleKind { in_game: u32, written: u32 },
 }
 
-unsafe fn var_id(vars: &HashMap<String, Va>, name: &str) -> Result<usize, VarRejection> {
+impl fmt::Display for VarRejection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VarRejection::MissingVar => {
+                write!(f, "unknown variable name")
+            }
+            VarRejection::IdNotReady => write!(f, "the game has not been initialized yet"),
+            VarRejection::NullObject => write!(f, "cant access a null object"),
+            VarRejection::NullVar => write!(f, "cant access null var"),
+            VarRejection::IncompatibleKind { in_game, written } => {
+                write!(f, "the game expected a {:?} got {:?}", in_game, written)
+            }
+        }
+    }
+}
+
+impl Error for VarRejection {}
+
+unsafe fn var_id(vars: &HashMap<String, addr::Va>, name: &str) -> Result<usize, VarRejection> {
     let Some(&id_ptr) = vars.get(name) else {
         return Err(VarRejection::MissingVar);
     };
@@ -68,16 +81,17 @@ unsafe fn var_id(vars: &HashMap<String, Va>, name: &str) -> Result<usize, VarRej
 ///
 /// This pointer should point to a live game instance and vars should come from var scanner
 pub unsafe fn get_var(
-    vars: &HashMap<String, Va>,
+    vars: &HashMap<String, addr::Va>,
     this: *mut c_void,
     name: &str,
-) -> Result<*mut YYCVal, VarRejection> {
+) -> Result<*mut layout::YYCVal, VarRejection> {
     if this.is_null() {
         return Err(VarRejection::NullObject);
     }
     let id = unsafe { var_id(vars, name) }?;
     let vtable = unsafe { *(this as *const *const usize) };
-    let f: VarGetter = unsafe { std::mem::transmute(*vtable.add(VAR_MUT_GETTER_VTABLE_IDX)) };
+    let f: layout::VarGetter =
+        unsafe { std::mem::transmute(*vtable.add(layout::VAR_MUT_GETTER_VTABLE_IDX)) };
     Ok(unsafe { f(this, id) })
 }
 
@@ -85,7 +99,7 @@ pub unsafe fn get_var(
 ///
 /// This pointer should point to a live game instance and vars should come from var scanner
 pub unsafe fn set_var(
-    vars: &HashMap<String, Va>,
+    vars: &HashMap<String, addr::Va>,
     this: *mut c_void,
     name: &str,
     val: &Variant,
@@ -95,9 +109,12 @@ pub unsafe fn set_var(
         return Err(VarRejection::NullVar);
     }
     let safe_p = unsafe { &mut *p };
-    let yyc_val: YYCVal = YYCVal::from(val);
+    let yyc_val: layout::YYCVal = layout::YYCVal::from(val);
     if safe_p.kind != yyc_val.kind {
-        return Err(VarRejection::IncompatibleKind);
+        return Err(VarRejection::IncompatibleKind {
+            in_game: safe_p.kind,
+            written: yyc_val.kind,
+        });
     }
     safe_p.value = yyc_val.value;
     Ok(())

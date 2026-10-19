@@ -11,6 +11,5 @@ edition = "2024"
 panic = "unwind"
 
 [workspace.lints.rust]
-dead_code = "allow"
 
 [workspace.lints.clippy]

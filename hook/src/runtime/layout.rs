@@ -37,3 +37,5 @@ pub struct YYCFn {
 const _: () = assert!(size_of::<YYCVal>() == 16);
 const _: () = assert!(size_of::<YYCVar>() == 16);
 const _: () = assert!(size_of::<YYCFn>() == 24);
+
+pub const VAR_MUT_GETTER_VTABLE_IDX: usize = 2;
