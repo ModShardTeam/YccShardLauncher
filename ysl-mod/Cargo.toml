@@ -1,0 +1,11 @@
+[package]
+name = "ysl-mod"
+edition = "2024"
+version.workspace = true
+
+[lib]
+
+[dependencies]
+
+[lints]
+workspace = true

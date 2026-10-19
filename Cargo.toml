@@ -1,5 +1,5 @@
 [workspace]
-members = ["hook", "injector", "xtask"]
+members = ["hook", "injector", "xtask", "ysl-mod"]
 resolver = "3"
 
 [workspace.package]
