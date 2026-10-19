@@ -1,8 +1,8 @@
 #[macro_use]
 mod logger;
 mod adapter;
+mod frame;
 mod hooks;
-mod mods_example;
 mod patch;
 mod pe_parser;
 mod pe_structs;
@@ -12,7 +12,10 @@ mod yyc_structs;
 
 use anyhow::{Context, Result, bail};
 use rhai::{CallFnOptions, Engine, Scope};
-use std::{path::PathBuf, sync::OnceLock};
+use std::{
+    path::PathBuf,
+    sync::{Arc, OnceLock},
+};
 use windows::Win32::System::LibraryLoader::GetModuleHandleW;
 
 static ENGINE: OnceLock<Engine> = OnceLock::new();
@@ -30,7 +33,7 @@ fn init_inner(log_folder: String) -> Result<()> {
         bail!("Couldnt set the log folder");
     }
 
-    if ENGINE.set(adapter::create_engine()).is_err() {
+    if ENGINE.set(adapter::create_rhai_engine()).is_err() {
         bail!("Couldnt set rhai engine");
     }
 
@@ -66,15 +69,21 @@ fn init_inner(log_folder: String) -> Result<()> {
 
     // TODO: remove this example
     let example_script = "fn load(mod) {
-    patch_constant(\"gml_Object_o_player_Step_0\", 250.0, 10.0);
-    patch_constant(\"gml_Object_o_player_Step_0\", 30.0, 60.0);
+    mod.load_script(\"gml_Object_o_player_Step_0\")
+        .replace_constant(250.0, 10.0)
+        .replace_constant(30.0, 60.0)
+        .save();
+
+    mod.load_script(\"gml_Object_o_player_Step_0\")
+        .add_postfix(|ctx| mod.set_var(ctx, \"HP\", 50))
+        .save();
 }";
 
     let engine = ENGINE.get().context("getting rhai engine")?;
     let loader = adapter::Loader::new("test mod");
+    let ast = engine.compile(example_script)?;
 
-    let mod_ast = engine.compile(example_script)?;
-    if mod_ast
+    if ast
         .iter_functions()
         .any(|f| f.name == "load" && f.params.len() == 1)
     {
@@ -82,7 +91,7 @@ fn init_inner(log_folder: String) -> Result<()> {
         let result = engine.call_fn_with_options::<()>(
             options,
             &mut Scope::new(),
-            &mod_ast,
+            &ast,
             "load",
             (loader.clone(),),
         );
@@ -90,6 +99,7 @@ fn init_inner(log_folder: String) -> Result<()> {
         if let Err(e) = result {
             log!("mod {}: load failed {e:#}", loader.get_name());
         } else {
+            loader.apply(engine, Arc::new(ast))?;
             log!("mod {}: load succeeded", loader.get_name());
         }
     } else {

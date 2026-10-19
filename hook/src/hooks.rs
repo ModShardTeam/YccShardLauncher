@@ -7,12 +7,13 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{OnceLock, PoisonError};
 
+use crate::frame;
 use crate::symbols;
 
 type EventFn = unsafe extern "C" fn(*mut c_void, *mut c_void, usize, usize);
 
-type Prefix = Box<dyn Fn(*mut c_void, *mut c_void) -> Option<bool> + Send + Sync>;
-type Postfix = Box<dyn Fn(*mut c_void, *mut c_void) + Send + Sync>;
+pub type Prefix = Box<dyn Fn() -> Option<bool> + Send + Sync>;
+pub type Postfix = Box<dyn Fn() + Send + Sync>;
 
 static SLOTS: [Slot; 64] = [const { Slot::new() }; 64];
 static DISPATCH: [EventFn; 64] = seq!(N in 0..64 { [ #(dispatch::<N> as EventFn,)* ] });
@@ -67,7 +68,9 @@ extern "C" fn dispatch<const N: usize>(
             .read()
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
-            .fold(true, |ok, prefix| prefix(this, other).unwrap_or(true) && ok)
+            .fold(true, |ok, prefix| {
+                frame::with_frame(frame::Frame { this, other }, || prefix()).unwrap_or(true) && ok
+            })
     }))
     .unwrap_or(true);
 
@@ -84,7 +87,7 @@ extern "C" fn dispatch<const N: usize>(
             .read()
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
-            .for_each(|postfix| postfix(this, other))
+            .for_each(|postfix| frame::with_frame(frame::Frame { this, other }, || postfix()))
     }));
 }
 
