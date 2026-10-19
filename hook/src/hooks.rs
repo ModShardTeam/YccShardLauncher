@@ -69,7 +69,7 @@ extern "C" fn dispatch<const N: usize>(
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
             .fold(true, |ok, prefix| {
-                frame::with_frame(frame::Frame { this, other }, || prefix()).unwrap_or(true) && ok
+                frame::with_frame(frame::Frame { this, other }, prefix).unwrap_or(true) && ok
             })
     }))
     .unwrap_or(true);
@@ -87,7 +87,7 @@ extern "C" fn dispatch<const N: usize>(
             .read()
             .unwrap_or_else(PoisonError::into_inner)
             .iter()
-            .for_each(|postfix| frame::with_frame(frame::Frame { this, other }, || postfix()))
+            .for_each(|postfix| frame::with_frame(frame::Frame { this, other }, postfix))
     }));
 }
 

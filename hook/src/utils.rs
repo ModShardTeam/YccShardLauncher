@@ -1,4 +1,4 @@
-use std::{collections::HashMap, ffi::c_void};
+use std::{collections::HashMap, error::Error, ffi::c_void, fmt};
 
 use crate::{
     pe_structs::Va,
@@ -45,8 +45,26 @@ pub enum VarRejection {
     IdNotReady,
     NullObject,
     NullVar,
-    IncompatibleKind,
+    IncompatibleKind { in_game: u32, written: u32 },
 }
+
+impl fmt::Display for VarRejection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            VarRejection::MissingVar => {
+                write!(f, "unknown variable name")
+            }
+            VarRejection::IdNotReady => write!(f, "the game has not been initialized yet"),
+            VarRejection::NullObject => write!(f, "cant access a null object"),
+            VarRejection::NullVar => write!(f, "cant access null var"),
+            VarRejection::IncompatibleKind { in_game, written } => {
+                write!(f, "the game expected a {:?} got {:?}", in_game, written)
+            }
+        }
+    }
+}
+
+impl Error for VarRejection {}
 
 unsafe fn var_id(vars: &HashMap<String, Va>, name: &str) -> Result<usize, VarRejection> {
     let Some(&id_ptr) = vars.get(name) else {
@@ -97,7 +115,10 @@ pub unsafe fn set_var(
     let safe_p = unsafe { &mut *p };
     let yyc_val: YYCVal = YYCVal::from(val);
     if safe_p.kind != yyc_val.kind {
-        return Err(VarRejection::IncompatibleKind);
+        return Err(VarRejection::IncompatibleKind {
+            in_game: safe_p.kind,
+            written: yyc_val.kind,
+        });
     }
     safe_p.value = yyc_val.value;
     Ok(())

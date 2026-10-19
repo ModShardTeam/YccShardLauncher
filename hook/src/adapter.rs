@@ -1,5 +1,4 @@
 use std::{
-    ffi::c_void,
     mem,
     sync::{
         Arc, Mutex, PoisonError,
@@ -10,7 +9,7 @@ use std::{
 use anyhow::Result;
 use rhai::{AST, Engine, EvalAltResult, FnPtr};
 
-use crate::{hooks, patch, symbols, utils};
+use crate::{frame, hooks, patch, symbols, utils};
 
 #[derive(Clone)]
 pub struct Loader(Arc<LoaderState>);
@@ -31,27 +30,31 @@ struct LoaderState {
     active: AtomicBool,
     pending: Mutex<Vec<ScriptChanges>>,
 }
-/*
 
-impl Context {
-    fn set_var(&self, var_name: &str, value: f64) -> Result<(), Box<EvalAltResult>> {
-        let Some(vars) = symbols::VARS.get() else {
-            return Err("VARS table not initialized yet".into());
-        };
-        if let Err(e) = unsafe {
-            utils::set_var(
-                vars,
-                self.0.this,
-                var_name,
-                &utils::Variant::Real(value),
-            )
-        } {
-            // TODO: ignore IdNotReady, but it's a non-issue currently, IdNotReady is not seen in the log
-            log!("{:#?}", e);
-        }
-        Ok(())
+fn set_var_float(var_name: &str, value: f64) -> Result<(), Box<EvalAltResult>> {
+    let Some(current_frame) = frame::current() else {
+        return Err("set_var can only be called inside a prefix/postfix".into());
+    };
+
+    let Some(vars) = symbols::VARS.get() else {
+        return Err("VARS table not initialized yet".into());
+    };
+    if let Err(e) = unsafe {
+        utils::set_var(
+            vars,
+            current_frame.this,
+            var_name,
+            &utils::Variant::Real(value),
+        )
+    } {
+        return Err(format!("cant set {:?}: {e}", var_name).into());
     }
-} */
+    Ok(())
+}
+
+fn set_var_int(var_name: &str, value: i64) -> Result<(), Box<EvalAltResult>> {
+    set_var_float(var_name, value as f64)
+}
 
 impl Loader {
     pub fn new(mod_name: &str) -> Self {
@@ -74,7 +77,7 @@ impl Loader {
         if self.0.active.load(Ordering::Relaxed) {
             Ok(())
         } else {
-            Err(format!("mod {}: loader used outside of load()", self.get_name()).into())
+            Err(format!("mod {:?}: loader used outside of load()", self.get_name()).into())
         }
     }
 
@@ -100,27 +103,34 @@ impl Loader {
             // TODO: remove this for patch-only function as it burned a slot for nothing
             let slot = unsafe { hooks::install(&change.target_script_name) }?;
             for op in change.ops {
+                let mod_name = self.get_name().to_owned();
+                let func_name = change.target_script_name.to_owned();
                 match op {
                     Op::Replace(old, new) => {
-                        let mod_name = change.target_script_name.to_owned();
-                        patch::patch_constant(&mod_name, old, new)?;
+                        patch::patch_constant(&func_name, old, new)?;
                     }
                     Op::Postfix(postfix) => {
-                        let mod_name = change.target_script_name.to_owned();
                         let ast = Arc::clone(&ast);
-                        slot.add_postfix(Box::new(move |_this, _other| {
+                        slot.add_postfix(Box::new(move || {
                             if let Err(e) = postfix.call::<()>(engine, &ast, ()) {
-                                log!("mod {}: postfix failed: {e:#}", mod_name);
+                                log!(
+                                    "mod {:?}: postfix on {:?} failed: {e:#}",
+                                    mod_name,
+                                    func_name
+                                );
                             }
                         }));
                     }
                     Op::Prefix(prefix) => {
-                        let mod_name = change.target_script_name.to_owned();
                         let ast = Arc::clone(&ast);
-                        slot.add_prefix(Box::new(move |_this, _other| {
+                        slot.add_prefix(Box::new(move || {
                             match prefix.call::<bool>(engine, &ast, ()) {
                                 Err(e) => {
-                                    log!("mod {}: postfix failed: {e:#}", mod_name);
+                                    log!(
+                                        "mod {:?}: prefix on {:?} failed: {e:#}",
+                                        mod_name,
+                                        func_name
+                                    );
                                     None
                                 }
                                 Ok(v) => Some(v),
@@ -221,6 +231,8 @@ pub fn create_rhai_engine() -> Engine {
         .register_fn("replace_constant", ScriptLoader::replace_constant)
         .register_fn("add_postfix", ScriptLoader::add_postfix)
         .register_fn("add_prefix", ScriptLoader::add_prefix)
-        .register_fn("save", ScriptLoader::save);
+        .register_fn("save", ScriptLoader::save)
+        .register_fn("set_var", set_var_float)
+        .register_fn("set_var", set_var_int);
     engine
 }

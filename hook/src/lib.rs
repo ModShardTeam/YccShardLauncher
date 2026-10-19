@@ -75,7 +75,10 @@ fn init_inner(log_folder: String) -> Result<()> {
         .save();
 
     mod.load_script(\"gml_Object_o_player_Step_0\")
-        .add_postfix(|ctx| mod.set_var(ctx, \"HP\", 50))
+        .add_postfix(|| set_var(\"HP\", 50))
+        .add_postfix(|| set_var(\"hp\", 50))
+        .add_postfix(|| set_var(\"aaaaaaaaaaaaaaaaaaaaaa\", 50))
+        .add_postfix(|| set_var(\"max_xp\", \"eer\"))
         .save();
 }";
 
@@ -97,14 +100,14 @@ fn init_inner(log_folder: String) -> Result<()> {
         );
         loader.deactivate();
         if let Err(e) = result {
-            log!("mod {}: load failed {e:#}", loader.get_name());
+            log!("mod {:?}: load failed {e:#}", loader.get_name());
         } else {
             loader.apply(engine, Arc::new(ast))?;
-            log!("mod {}: load succeeded", loader.get_name());
+            log!("mod {:?}: load succeeded", loader.get_name());
         }
     } else {
         log!(
-            "mod {}: load function not found, cant apply mod",
+            "mod {:?}: load function not found, cant apply mod",
             loader.get_name()
         );
     }
