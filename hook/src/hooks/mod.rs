@@ -1,3 +1,5 @@
+pub mod frame;
+
 use anyhow::{Context, Result, bail};
 use retour::GenericDetour;
 use seq_macro::seq;
@@ -7,8 +9,7 @@ use std::sync::RwLock;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{OnceLock, PoisonError};
 
-use crate::frame;
-use crate::symbols;
+use crate::runtime::symbols;
 
 type EventFn = unsafe extern "C" fn(*mut c_void, *mut c_void, usize, usize);
 

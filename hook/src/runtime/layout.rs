@@ -37,3 +37,11 @@ pub struct YYCFn {
 const _: () = assert!(size_of::<YYCVal>() == 16);
 const _: () = assert!(size_of::<YYCVar>() == 16);
 const _: () = assert!(size_of::<YYCFn>() == 24);
+
+pub const MAX_SIZE_GML_NAME: usize = 128;
+pub const GML_PREFIXES: [&str; 4] = [
+    "gml_Object_",
+    "gml_Script_",
+    "gml_GlobalScript_",
+    "gml_RoomCC_",
+];

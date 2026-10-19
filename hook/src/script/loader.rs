@@ -6,13 +6,9 @@ use std::{
     },
 };
 
-use anyhow::Result;
 use rhai::{AST, Engine, EvalAltResult, FnPtr};
 
-use crate::{frame, hooks, patch, symbols, utils};
-
-#[derive(Clone)]
-pub struct Loader(Arc<LoaderState>);
+use crate::{hooks, patch, runtime::symbols};
 
 enum Op {
     Replace(f64, f64),
@@ -31,30 +27,8 @@ struct LoaderState {
     pending: Mutex<Vec<ScriptChanges>>,
 }
 
-fn set_var_float(var_name: &str, value: f64) -> Result<(), Box<EvalAltResult>> {
-    let Some(current_frame) = frame::current() else {
-        return Err("set_var can only be called inside a prefix/postfix".into());
-    };
-
-    let Some(vars) = symbols::VARS.get() else {
-        return Err("VARS table not initialized yet".into());
-    };
-    if let Err(e) = unsafe {
-        utils::set_var(
-            vars,
-            current_frame.this,
-            var_name,
-            &utils::Variant::Real(value),
-        )
-    } {
-        return Err(format!("cant set {:?}: {e}", var_name).into());
-    }
-    Ok(())
-}
-
-fn set_var_int(var_name: &str, value: i64) -> Result<(), Box<EvalAltResult>> {
-    set_var_float(var_name, value as f64)
-}
+#[derive(Clone)]
+pub struct Loader(Arc<LoaderState>);
 
 impl Loader {
     pub fn new(mod_name: &str) -> Self {
@@ -81,7 +55,7 @@ impl Loader {
         }
     }
 
-    fn load_script(&mut self, script_name: &str) -> Result<ScriptLoader, Box<EvalAltResult>> {
+    pub fn load_script(&mut self, script_name: &str) -> Result<ScriptLoader, Box<EvalAltResult>> {
         self.check_active()?;
         Ok(ScriptLoader {
             loader: self.clone(),
@@ -145,14 +119,14 @@ impl Loader {
 }
 
 #[derive(Clone)]
-struct ScriptLoader {
+pub struct ScriptLoader {
     loader: Loader,
     script_name: String,
     ops: Arc<Mutex<Vec<Op>>>,
 }
 
 impl ScriptLoader {
-    fn replace_constant(&mut self, old: f64, new: f64) -> Result<Self, Box<EvalAltResult>> {
+    pub fn replace_constant(&mut self, old: f64, new: f64) -> Result<Self, Box<EvalAltResult>> {
         self.loader.check_active()?;
         self.ops
             .lock()
@@ -161,7 +135,7 @@ impl ScriptLoader {
         Ok(self.clone())
     }
 
-    fn add_postfix(&mut self, callback: FnPtr) -> Result<Self, Box<EvalAltResult>> {
+    pub fn add_postfix(&mut self, callback: FnPtr) -> Result<Self, Box<EvalAltResult>> {
         self.loader.check_active()?;
         self.ops
             .lock()
@@ -170,7 +144,7 @@ impl ScriptLoader {
         Ok(self.clone())
     }
 
-    fn add_prefix(&mut self, callback: FnPtr) -> Result<Self, Box<EvalAltResult>> {
+    pub fn add_prefix(&mut self, callback: FnPtr) -> Result<Self, Box<EvalAltResult>> {
         self.loader.check_active()?;
         self.ops
             .lock()
@@ -179,7 +153,7 @@ impl ScriptLoader {
         Ok(self.clone())
     }
 
-    fn save(&mut self) -> Result<(), Box<EvalAltResult>> {
+    pub fn save(&mut self) -> Result<(), Box<EvalAltResult>> {
         self.loader.check_active()?;
 
         if !symbols::is_function_name_valid(&self.script_name) {
@@ -190,7 +164,7 @@ impl ScriptLoader {
         for op in &*ops {
             match op {
                 Op::Replace(old, _) => {
-                    if let Err(e) = symbols::find_imm64(&self.script_name, *old) {
+                    if let Err(e) = patch::find_imm64(&self.script_name, *old) {
                         return Err(format!("{e:#} in {}", self.script_name).into());
                     }
                 }
@@ -213,26 +187,4 @@ impl ScriptLoader {
 
         Ok(())
     }
-}
-
-pub fn create_rhai_engine() -> Engine {
-    // TODO: redirects print and debug to the log
-    let mut engine = Engine::new();
-    engine.set_max_operations(100_000);
-    engine.set_max_string_size(10_000);
-    engine.set_max_array_size(1_000);
-    engine.set_max_map_size(1_000);
-    engine.disable_symbol("eval");
-
-    engine
-        .register_type_with_name::<Loader>("Loader")
-        .register_type_with_name::<ScriptLoader>("ScriptLoader")
-        .register_fn("load_script", Loader::load_script)
-        .register_fn("replace_constant", ScriptLoader::replace_constant)
-        .register_fn("add_postfix", ScriptLoader::add_postfix)
-        .register_fn("add_prefix", ScriptLoader::add_prefix)
-        .register_fn("save", ScriptLoader::save)
-        .register_fn("set_var", set_var_float)
-        .register_fn("set_var", set_var_int);
-    engine
 }

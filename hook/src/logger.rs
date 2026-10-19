@@ -6,7 +6,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use crate::pe_structs::Rva;
+use crate::pe::addr;
 
 pub static FOLDER: OnceLock<PathBuf> = OnceLock::new();
 
@@ -39,7 +39,7 @@ pub fn hex_dump(data: &[u8]) -> String {
 
 pub fn export_symbol_table<'a>(
     file: &str,
-    table: impl Iterator<Item = (&'a String, Option<Rva>)>,
+    table: impl Iterator<Item = (&'a String, Option<addr::Rva>)>,
 ) -> Result<()> {
     let folder = FOLDER.get().with_context(|| "Log folder is not set")?;
     let msg = serde_json::to_string_pretty(

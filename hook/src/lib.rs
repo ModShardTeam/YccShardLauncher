@@ -1,14 +1,11 @@
 #[macro_use]
 mod logger;
-mod adapter;
-mod frame;
-mod hooks;
 mod patch;
-mod pe_parser;
-mod pe_structs;
-mod symbols;
-mod utils;
-mod yyc_structs;
+
+mod hooks;
+mod pe;
+mod runtime;
+mod script;
 
 use anyhow::{Context, Result, bail};
 use rhai::{CallFnOptions, Engine, Scope};
@@ -33,7 +30,7 @@ fn init_inner(log_folder: String) -> Result<()> {
         bail!("Couldnt set the log folder");
     }
 
-    if ENGINE.set(adapter::create_rhai_engine()).is_err() {
+    if ENGINE.set(script::engine::create_rhai_engine()).is_err() {
         bail!("Couldnt set rhai engine");
     }
 
@@ -43,27 +40,27 @@ fn init_inner(log_folder: String) -> Result<()> {
         bail!("GetModuleHandleW failed");
     };
 
-    let base = pe_structs::Va(handle.0 as usize);
+    let base = pe::addr::Va(handle.0 as usize);
     log!("base = {base:#x}");
 
-    let vars = pe_parser::scan_var_table(base).context("scanning var table")?;
+    let vars = runtime::scan::scan_var_table(base).context("scanning var table")?;
     logger::export_symbol_table(
         "vars.json",
         vars.iter().map(|(s, &v)| (s, v.rva_from_base(base))),
     )
     .context("exporting var table")?;
 
-    let fns = pe_parser::scan_fn_table(base).context("scanning fn table")?;
+    let fns = runtime::scan::scan_fn_table(base).context("scanning fn table")?;
     logger::export_symbol_table(
         "fns.json",
         fns.iter().map(|(s, f)| (s, f.start.rva_from_base(base))),
     )
     .context("exporting fn table")?;
 
-    if symbols::VARS.set(vars).is_err() {
+    if runtime::symbols::VARS.set(vars).is_err() {
         bail!("couldnt set vars map");
     }
-    if symbols::FNS.set(fns).is_err() {
+    if runtime::symbols::FNS.set(fns).is_err() {
         bail!("couldnt set fns map");
     }
 
@@ -83,7 +80,7 @@ fn init_inner(log_folder: String) -> Result<()> {
 }";
 
     let engine = ENGINE.get().context("getting rhai engine")?;
-    let loader = adapter::Loader::new("test mod");
+    let loader = script::loader::Loader::new("test mod");
     let ast = engine.compile(example_script)?;
 
     if ast
