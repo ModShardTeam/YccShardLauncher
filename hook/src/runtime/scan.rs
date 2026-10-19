@@ -4,12 +4,21 @@ use std::mem::offset_of;
 use std::slice;
 
 use anyhow::Result;
-use windows::Win32::System::Diagnostics::Debug::{
-    IMAGE_DIRECTORY_ENTRY_EXCEPTION, IMAGE_RUNTIME_FUNCTION_ENTRY,
-};
 
 use crate::pe::{addr, image};
 use crate::runtime::{layout, symbols};
+
+#[derive(Debug, Clone)]
+struct ResolvedVar {
+    name: &'static str,
+    id_ptr: symbols::VarAddress,
+}
+
+#[derive(Debug, Clone)]
+struct ResolvedFn {
+    name: &'static str,
+    func_ptr: symbols::FnAddress,
+}
 
 #[derive(Debug)]
 pub enum NameRejection {
@@ -111,32 +120,21 @@ impl FnStats {
     }
 }
 
-fn pdata_starts(base: addr::Va) -> Result<Vec<symbols::FnAddress>> {
-    let nt = image::get_nt_header(base)?;
-    let data_dir = nt.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION.0 as usize];
-    let rva = addr::Rva(data_dir.VirtualAddress);
-    let size = data_dir.Size as usize;
-
-    let count = size / size_of::<IMAGE_RUNTIME_FUNCTION_ENTRY>();
-    unsafe {
-        Ok(
-            slice::from_raw_parts((base + rva).as_ptr::<IMAGE_RUNTIME_FUNCTION_ENTRY>(), count)
-                .iter()
-                .map(|entry| symbols::FnAddress {
-                    start: base + addr::Rva(entry.BeginAddress),
-                    end: base + addr::Rva(entry.EndAddress),
-                })
-                .collect(),
-        )
-    }
-}
+// heuristics
+const MAX_SIZE_GML_NAME: usize = 128;
+const GML_PREFIXES: [&str; 4] = [
+    "gml_Object_",
+    "gml_Script_",
+    "gml_GlobalScript_",
+    "gml_RoomCC_",
+];
 
 // SAFETY: the module stays loaded, we can give the static lifetime
 fn read_name(rdata: &image::Section, ptr: addr::Va) -> Result<&'static str, NameRejection> {
     if !image::in_section(rdata, ptr) {
         return Err(NameRejection::OutOfBounds);
     }
-    let max = min(rdata.start + rdata.len - ptr, layout::MAX_SIZE_GML_NAME);
+    let max = min(rdata.start + rdata.len - ptr, MAX_SIZE_GML_NAME);
     let bytes = unsafe { slice::from_raw_parts(ptr.as_ptr::<u8>(), max) };
     let end = bytes
         .iter()
@@ -160,7 +158,7 @@ fn read_name(rdata: &image::Section, ptr: addr::Va) -> Result<&'static str, Name
 fn var_entry_at(
     rdata: &image::Section,
     cursor: addr::Va,
-) -> Result<symbols::ResolvedVar, VarEntryRejection> {
+) -> Result<ResolvedVar, VarEntryRejection> {
     // cursor is guaranteed to be inside .data
     unsafe {
         let entry: layout::YYCVar = *(cursor.as_ptr::<layout::YYCVar>());
@@ -174,7 +172,7 @@ fn var_entry_at(
             return Err(VarEntryRejection::NonZeroPad);
         }
 
-        Ok(symbols::ResolvedVar {
+        Ok(ResolvedVar {
             name: read_name(rdata, addr::Va(entry.name_ptr))?,
             id_ptr: cursor + offset_of!(layout::YYCVar, id),
         })
@@ -187,7 +185,7 @@ fn fn_entry_at(
     text: &image::Section,
     starts: &[symbols::FnAddress],
     cursor: addr::Va,
-) -> Result<symbols::ResolvedFn, FnEntryRejection> {
+) -> Result<ResolvedFn, FnEntryRejection> {
     // cursor is guaranteed to be inside .data
     unsafe {
         let entry = *(cursor.as_ptr::<layout::YYCFn>());
@@ -200,7 +198,7 @@ fn fn_entry_at(
 
         let name = read_name(rdata, addr::Va(entry.name_ptr))?;
 
-        if !layout::GML_PREFIXES.iter().any(|pre| name.starts_with(pre)) {
+        if !GML_PREFIXES.iter().any(|pre| name.starts_with(pre)) {
             return Err(FnEntryRejection::BadPrefix);
         }
         // TODO: this read is unaligned
@@ -212,7 +210,7 @@ fn fn_entry_at(
             return Err(FnEntryRejection::NotFoundInPdata);
         };
 
-        Ok(symbols::ResolvedFn {
+        Ok(ResolvedFn {
             name,
             func_ptr: starts[i],
         })
@@ -225,11 +223,11 @@ pub fn scan_var_table(base: addr::Va) -> Result<HashMap<String, symbols::VarAddr
     let rdata = image::find_section(&secs, ".rdata")?;
     let data = image::find_section(&secs, ".data")?;
 
-    let mut best: Vec<symbols::ResolvedVar> = vec![];
+    let mut best: Vec<ResolvedVar> = vec![];
     let mut best_rej: Option<VarEntryRejection> = None;
     let mut off = 0usize;
     while off + size_of::<layout::YYCVar>() <= data.len {
-        let mut run: Vec<symbols::ResolvedVar> = vec![];
+        let mut run: Vec<ResolvedVar> = vec![];
         let mut run_rej: Option<VarEntryRejection> = None;
         let mut cursor = data.start + off;
         while cursor + size_of::<layout::YYCVar>() <= data.start + data.len {
@@ -272,7 +270,7 @@ pub fn scan_fn_table(base: addr::Va) -> Result<HashMap<String, symbols::FnAddres
     let rdata = image::find_section(&secs, ".rdata")?;
     let data = image::find_section(&secs, ".data")?;
     let text = image::find_section(&secs, ".text")?;
-    let starts = pdata_starts(base)?;
+    let starts = image::pdata_starts(base)?;
 
     let mut map = HashMap::new();
 

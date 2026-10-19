@@ -44,14 +44,14 @@ fn init_inner(log_folder: String) -> Result<()> {
     log!("base = {base:#x}");
 
     let vars = runtime::scan::scan_var_table(base).context("scanning var table")?;
-    logger::export_symbol_table(
+    runtime::dump::export_symbol_table(
         "vars.json",
         vars.iter().map(|(s, &v)| (s, v.rva_from_base(base))),
     )
     .context("exporting var table")?;
 
     let fns = runtime::scan::scan_fn_table(base).context("scanning fn table")?;
-    logger::export_symbol_table(
+    runtime::dump::export_symbol_table(
         "fns.json",
         fns.iter().map(|(s, f)| (s, f.start.rva_from_base(base))),
     )

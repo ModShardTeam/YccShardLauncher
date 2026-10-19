@@ -34,8 +34,6 @@ impl From<&Variant> for layout::YYCVal {
     }
 }
 
-const VAR_MUT_GETTER_VTABLE_IDX: usize = 2;
-
 #[derive(Debug)]
 pub enum VarRejection {
     MissingVar,
@@ -93,7 +91,7 @@ pub unsafe fn get_var(
     let id = unsafe { var_id(vars, name) }?;
     let vtable = unsafe { *(this as *const *const usize) };
     let f: layout::VarGetter =
-        unsafe { std::mem::transmute(*vtable.add(VAR_MUT_GETTER_VTABLE_IDX)) };
+        unsafe { std::mem::transmute(*vtable.add(layout::VAR_MUT_GETTER_VTABLE_IDX)) };
     Ok(unsafe { f(this, id) })
 }
 

@@ -1,8 +1,11 @@
-use std::slice;
+use std::{range::Range, slice};
 
 use anyhow::{Context, Result, bail};
 use windows::Win32::System::{
-    Diagnostics::Debug::{IMAGE_NT_HEADERS64, IMAGE_NT_OPTIONAL_HDR64_MAGIC, IMAGE_SECTION_HEADER},
+    Diagnostics::Debug::{
+        IMAGE_DIRECTORY_ENTRY_EXCEPTION, IMAGE_NT_HEADERS64, IMAGE_NT_OPTIONAL_HDR64_MAGIC,
+        IMAGE_RUNTIME_FUNCTION_ENTRY, IMAGE_SECTION_HEADER,
+    },
     SystemServices::{IMAGE_DOS_HEADER, IMAGE_DOS_SIGNATURE, IMAGE_NT_SIGNATURE},
 };
 
@@ -67,4 +70,25 @@ pub fn find_section<'a>(secs: &'a [Section], name: &str) -> Result<&'a Section> 
     secs.iter()
         .find(|s| s.name == name)
         .with_context(|| format!("section {name} not found"))
+}
+
+pub fn pdata_starts(base: addr::Va) -> Result<Vec<Range<addr::Va>>> {
+    let nt = get_nt_header(base)?;
+    let data_dir = nt.OptionalHeader.DataDirectory[IMAGE_DIRECTORY_ENTRY_EXCEPTION.0 as usize];
+    let rva = addr::Rva(data_dir.VirtualAddress);
+    let size = data_dir.Size as usize;
+
+    let count = size / size_of::<IMAGE_RUNTIME_FUNCTION_ENTRY>();
+    unsafe {
+        Ok(
+            slice::from_raw_parts((base + rva).as_ptr::<IMAGE_RUNTIME_FUNCTION_ENTRY>(), count)
+                .iter()
+                .map(|entry| {
+                    Range::from(
+                        base + addr::Rva(entry.BeginAddress)..base + addr::Rva(entry.EndAddress),
+                    )
+                })
+                .collect(),
+        )
+    }
 }

@@ -1,18 +1,20 @@
-use anyhow::{Context, Result};
-use std::collections::BTreeMap;
 use std::fmt::Write as _;
 use std::io::Write as _;
 use std::path::Path;
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
-use crate::pe::addr;
-
 pub static FOLDER: OnceLock<PathBuf> = OnceLock::new();
 
 macro_rules! log {
     ($($t:tt)*) => {
         crate::logger::log(&format!($($t)*))
+    };
+}
+
+macro_rules! dump {
+    ($e: expr) => {
+        log!("{}", crate::logger::hex_dump($e))
     };
 }
 
@@ -35,27 +37,4 @@ pub fn hex_dump(data: &[u8]) -> String {
         let _ = write!(&mut str, "{b:#x} ");
     }
     str
-}
-
-pub fn export_symbol_table<'a>(
-    file: &str,
-    table: impl Iterator<Item = (&'a String, Option<addr::Rva>)>,
-) -> Result<()> {
-    let folder = FOLDER.get().with_context(|| "Log folder is not set")?;
-    let msg = serde_json::to_string_pretty(
-        &table
-            .map(|(k, v)| {
-                (
-                    k,
-                    match v {
-                        None => "#NA#".to_string(),
-                        Some(rva) => format!("{}", rva),
-                    },
-                )
-            })
-            .collect::<BTreeMap<_, _>>(),
-    )?;
-
-    std::fs::write(Path::new(folder).join(file), msg)
-        .with_context(|| format!("Writing table in {} failed", file))
 }
