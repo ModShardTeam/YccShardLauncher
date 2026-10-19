@@ -8,12 +8,21 @@ enum FourCC {
 }
 
 #[repr(C)]
-struct ChunkHeader {
+struct RawFileHeader {
+    pub magic: [u8; 4],
+    pub format_version: [u8; 2],
+    pub flags: [u8; 2],
+}
+
+const _: () = assert!(size_of::<RawFileHeader>() == 8);
+
+#[repr(C)]
+struct RawChunkHeader {
     four_cc: [u8; 4],
     len: [u8; 4],
 }
 
-const _: () = assert!(size_of::<ChunkHeader>() == 8);
+const _: () = assert!(size_of::<RawChunkHeader>() == 8);
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct RawChunk<'a> {
@@ -27,18 +36,18 @@ pub enum ChunkRejection {
     NotEnoughDataPayload { declared: u32, available: usize },
 }
 
-impl ChunkHeader {
-    fn read(bytes: &[u8]) -> Option<(ChunkHeader, &[u8])> {
+impl RawChunkHeader {
+    fn read(bytes: &[u8]) -> Option<(RawChunkHeader, &[u8])> {
         let (&four_cc, rest) = bytes.split_first_chunk()?;
         let (&len, rest) = rest.split_first_chunk()?;
-        Some((ChunkHeader { four_cc, len }, rest))
+        Some((RawChunkHeader { four_cc, len }, rest))
     }
 }
 
-pub fn parse_to_chunk<'a>(bytes: &'a [u8]) -> Result<(RawChunk<'a>, &'a [u8]), ChunkRejection> {
-    let Some((header, rest)) = ChunkHeader::read(bytes) else {
+pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(RawChunk<'a>, &'a [u8]), ChunkRejection> {
+    let Some((header, rest)) = RawChunkHeader::read(bytes) else {
         return Err(ChunkRejection::NotEnoughDataHeader {
-            needed: size_of::<ChunkHeader>(),
+            needed: size_of::<RawChunkHeader>(),
             available: bytes.len(),
         });
     };
