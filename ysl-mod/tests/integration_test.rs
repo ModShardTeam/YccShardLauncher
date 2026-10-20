@@ -1,3 +1,5 @@
+use std::vec;
+
 const ID_META: &[u8; 4] = b"META";
 const ID_RHAI: &[u8; 4] = b"RHAI";
 
@@ -122,8 +124,7 @@ fn parse_consecutive_chunks() {
     let mut input: Vec<u8> = create_byte_array(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
     input.extend_from_slice(&create_byte_array(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
 
-    let (first_parsed_chunk, first_rest) =
-        ysl_mod::parse_chunk(&input).expect("valid operation");
+    let (first_parsed_chunk, first_rest) = ysl_mod::parse_chunk(&input).expect("valid operation");
     assert_eq!(
         first_parsed_chunk,
         ysl_mod::RawChunk {
@@ -141,4 +142,53 @@ fn parse_consecutive_chunks() {
         }
     );
     assert_eq!(second_rest, &[]);
+}
+
+#[test]
+fn parse_file() {
+    let mut chunks: Vec<u8> = vec![];
+    chunks.extend_from_slice(&create_byte_array(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
+    chunks.extend_from_slice(&create_byte_array(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
+    chunks.extend_from_slice(&create_byte_array(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
+    chunks.extend_from_slice(&create_byte_array(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
+    chunks.extend_from_slice(&create_byte_array(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
+
+    let mut file: Vec<u8> = b"YFF\0".to_vec();
+    file.extend_from_slice(&(chunks.len() as u32).to_le_bytes());
+    file.extend_from_slice(&[0x00, 0x00, 0x00, 0x00]);
+    file.extend_from_slice(&chunks);
+
+    let f = ysl_mod::parse_file(&file).expect("valid operation");
+    assert_eq!(
+        f,
+        ysl_mod::File {
+            header: ysl_mod::FileHeader {
+                len: 59,
+                flags: 0,
+                format_version: 0,
+            },
+            chunks: vec![
+                ysl_mod::Chunk {
+                    four_cc: ysl_mod::FourCC::Metadata,
+                    payload: vec![0xA0, 0xA1, 0xA2]
+                },
+                ysl_mod::Chunk {
+                    four_cc: ysl_mod::FourCC::RhaiScript,
+                    payload: vec![0xB0, 0xB1, 0xB2, 0xB3]
+                },
+                ysl_mod::Chunk {
+                    four_cc: ysl_mod::FourCC::RhaiScript,
+                    payload: vec![0xC0, 0xC1, 0xC2, 0xC3]
+                },
+                ysl_mod::Chunk {
+                    four_cc: ysl_mod::FourCC::RhaiScript,
+                    payload: vec![0xD0, 0xD1, 0xD2, 0xD3]
+                },
+                ysl_mod::Chunk {
+                    four_cc: ysl_mod::FourCC::RhaiScript,
+                    payload: vec![0x00, 0x01, 0x02, 0x03]
+                }
+            ],
+        }
+    );
 }
