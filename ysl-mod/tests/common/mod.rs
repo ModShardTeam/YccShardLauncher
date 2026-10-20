@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub const ID_META: &[u8; 4] = b"META";
 pub const ID_RHAI: &[u8; 4] = b"RHAI";
 

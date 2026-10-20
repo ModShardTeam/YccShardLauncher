@@ -1,11 +1,11 @@
+mod common;
 use ysl_mod::process_data;
 use ysl_mod::raw_parser;
-mod fixtures;
 
 #[test]
 fn convert_valid_id_chunk() {
     let chunk = process_data::Chunk::from_raw(raw_parser::RawChunk {
-        four_cc: *fixtures::ID_RHAI,
+        four_cc: *common::ID_RHAI,
         payload: &[0x00, 0x01, 0x02, 0x03],
     })
     .expect("valid operation");
@@ -32,7 +32,7 @@ fn convert_invalid_id_chunk() {
 }
 
 #[test]
-fn convert_invalid_id_file() {
+fn convert_skips_unknown_id() {
     let raw_file = raw_parser::RawFile {
         header: raw_parser::RawFileHeader {
             magic: *b"YFF\0",
@@ -42,7 +42,7 @@ fn convert_invalid_id_file() {
         },
         chunks: vec![
             raw_parser::RawChunk {
-                four_cc: *fixtures::ID_META,
+                four_cc: *common::ID_META,
                 payload: &[0xA0, 0xA1, 0xA2, 0xA3],
             },
             raw_parser::RawChunk {
@@ -50,7 +50,7 @@ fn convert_invalid_id_file() {
                 payload: &[0xB0, 0xB1, 0xB2, 0xB3],
             },
             raw_parser::RawChunk {
-                four_cc: *fixtures::ID_RHAI,
+                four_cc: *common::ID_RHAI,
                 payload: &[0xC0, 0xC1, 0xC2, 0xC3],
             },
         ],
