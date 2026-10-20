@@ -1,38 +1,9 @@
+mod fixtures;
 use ysl_mod::raw_parser;
-
-const ID_META: &[u8; 4] = b"META";
-const ID_RHAI: &[u8; 4] = b"RHAI";
-
-fn create_chunk(id: &[u8; 4], len: u32, payload: &[u8]) -> Vec<u8> {
-    let mut array: Vec<u8> = vec![];
-    array.extend_from_slice(id);
-    array.extend_from_slice(&len.to_le_bytes());
-    array.extend_from_slice(payload);
-    array
-}
-
-fn create_header(magic: &[u8; 4], format_version: u16, flags: u16, len: u32) -> Vec<u8> {
-    let mut array: Vec<u8> = vec![];
-    array.extend_from_slice(magic);
-    array.extend_from_slice(&format_version.to_le_bytes());
-    array.extend_from_slice(&flags.to_le_bytes());
-    array.extend_from_slice(&len.to_le_bytes());
-    array
-}
-
-fn sample_body() -> Vec<u8> {
-    let mut body: Vec<u8> = vec![];
-    body.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
-    body
-}
 
 #[test]
 fn parse_empty() {
-    let input: Vec<u8> = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    let input: Vec<u8> = fixtures::create_chunk(fixtures::ID_META, 3, &[0xA0, 0xA1, 0xA2]);
     let error_chunk = raw_parser::parse_chunk(&input[..0]).unwrap_err();
     assert_eq!(
         error_chunk,
@@ -45,7 +16,7 @@ fn parse_empty() {
 
 #[test]
 fn parse_not_enough_data_for_header_fourcc() {
-    let input: Vec<u8> = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    let input: Vec<u8> = fixtures::create_chunk(fixtures::ID_META, 3, &[0xA0, 0xA1, 0xA2]);
     let error_chunk = raw_parser::parse_chunk(&input[..2]).unwrap_err();
     assert_eq!(
         error_chunk,
@@ -58,7 +29,7 @@ fn parse_not_enough_data_for_header_fourcc() {
 
 #[test]
 fn parse_not_enough_data_for_header_len() {
-    let input: Vec<u8> = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    let input: Vec<u8> = fixtures::create_chunk(fixtures::ID_META, 3, &[0xA0, 0xA1, 0xA2]);
     let error_chunk = raw_parser::parse_chunk(&input[..7]).unwrap_err();
     assert_eq!(
         error_chunk,
@@ -71,7 +42,7 @@ fn parse_not_enough_data_for_header_len() {
 
 #[test]
 fn parse_empty_payload() {
-    let input: Vec<u8> = create_chunk(ID_RHAI, 0, &[]);
+    let input: Vec<u8> = fixtures::create_chunk(fixtures::ID_RHAI, 0, &[]);
     let (parsed_chunk, rest) = raw_parser::parse_chunk(&input).expect("valid operation");
     assert_eq!(
         parsed_chunk,
@@ -85,7 +56,7 @@ fn parse_empty_payload() {
 
 #[test]
 fn parse_not_enough_data_for_payload() {
-    let input: Vec<u8> = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    let input: Vec<u8> = fixtures::create_chunk(fixtures::ID_META, 3, &[0xA0, 0xA1, 0xA2]);
     let error_chunk = raw_parser::parse_chunk(&input[..9]).unwrap_err();
     assert_eq!(
         error_chunk,
@@ -98,7 +69,7 @@ fn parse_not_enough_data_for_payload() {
 
 #[test]
 fn parse_valid_chunk() {
-    let input: Vec<u8> = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    let input: Vec<u8> = fixtures::create_chunk(fixtures::ID_META, 3, &[0xA0, 0xA1, 0xA2]);
     let (parsed_chunk, rest) = raw_parser::parse_chunk(&input).expect("valid operation");
     assert_eq!(
         parsed_chunk,
@@ -112,7 +83,7 @@ fn parse_valid_chunk() {
 
 #[test]
 fn parse_valid_chunk_extra_byte() {
-    let mut input: Vec<u8> = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    let mut input: Vec<u8> = fixtures::create_chunk(fixtures::ID_META, 3, &[0xA0, 0xA1, 0xA2]);
     input.extend_from_slice(&[0xA3]);
     let (parsed_chunk, rest) = raw_parser::parse_chunk(&input).expect("valid operation");
     assert_eq!(
@@ -127,7 +98,7 @@ fn parse_valid_chunk_extra_byte() {
 
 #[test]
 fn parse_len_max() {
-    let input: Vec<u8> = create_chunk(ID_META, u32::MAX, &[0xA0, 0xA1, 0xA2]);
+    let input: Vec<u8> = fixtures::create_chunk(fixtures::ID_META, u32::MAX, &[0xA0, 0xA1, 0xA2]);
     let error_chunk = raw_parser::parse_chunk(&input).unwrap_err();
     assert_eq!(
         error_chunk,
@@ -140,8 +111,12 @@ fn parse_len_max() {
 
 #[test]
 fn parse_consecutive_chunks() {
-    let mut input: Vec<u8> = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
-    input.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
+    let mut input: Vec<u8> = fixtures::create_chunk(fixtures::ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    input.extend_from_slice(&fixtures::create_chunk(
+        fixtures::ID_RHAI,
+        4,
+        &[0xB0, 0xB1, 0xB2, 0xB3],
+    ));
 
     let (first_parsed_chunk, first_rest) =
         raw_parser::parse_chunk(&input).expect("valid operation");
@@ -166,7 +141,7 @@ fn parse_consecutive_chunks() {
 
 #[test]
 fn parse_iterator_stop() {
-    let mut broken_stream = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    let mut broken_stream = fixtures::create_chunk(fixtures::ID_META, 3, &[0xA0, 0xA1, 0xA2]);
     broken_stream.extend_from_slice(b"META");
     let mut iter = raw_parser::RawChunkIter::from(&broken_stream[..]);
 
@@ -189,8 +164,8 @@ fn parse_iterator_stop() {
 
 #[test]
 fn parse_valid_file() {
-    let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
+    let chunks: Vec<u8> = fixtures::sample_body();
+    let mut file = fixtures::create_header(b"YFF\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let f = raw_parser::parse_file(&file).expect("valid operation");
@@ -205,23 +180,23 @@ fn parse_valid_file() {
             },
             chunks: vec![
                 raw_parser::RawChunk {
-                    four_cc: *ID_META,
+                    four_cc: *fixtures::ID_META,
                     payload: &[0xA0, 0xA1, 0xA2]
                 },
                 raw_parser::RawChunk {
-                    four_cc: *ID_RHAI,
+                    four_cc: *fixtures::ID_RHAI,
                     payload: &[0xB0, 0xB1, 0xB2, 0xB3]
                 },
                 raw_parser::RawChunk {
-                    four_cc: *ID_RHAI,
+                    four_cc: *fixtures::ID_RHAI,
                     payload: &[0xC0, 0xC1, 0xC2, 0xC3]
                 },
                 raw_parser::RawChunk {
-                    four_cc: *ID_RHAI,
+                    four_cc: *fixtures::ID_RHAI,
                     payload: &[0xD0, 0xD1, 0xD2, 0xD3]
                 },
                 raw_parser::RawChunk {
-                    four_cc: *ID_RHAI,
+                    four_cc: *fixtures::ID_RHAI,
                     payload: &[0x00, 0x01, 0x02, 0x03]
                 }
             ],
@@ -231,8 +206,8 @@ fn parse_valid_file() {
 
 #[test]
 fn parse_bad_magic_file() {
-    let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"BAD\0", 1, 0, chunks.len() as u32);
+    let chunks: Vec<u8> = fixtures::sample_body();
+    let mut file = fixtures::create_header(b"BAD\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
@@ -241,8 +216,8 @@ fn parse_bad_magic_file() {
 
 #[test]
 fn parse_null_version_file() {
-    let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", 0, 0, chunks.len() as u32);
+    let chunks: Vec<u8> = fixtures::sample_body();
+    let mut file = fixtures::create_header(b"YFF\0", 0, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
@@ -254,8 +229,8 @@ fn parse_null_version_file() {
 
 #[test]
 fn parse_version_from_the_future_file() {
-    let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", u16::MAX, 0, chunks.len() as u32);
+    let chunks: Vec<u8> = fixtures::sample_body();
+    let mut file = fixtures::create_header(b"YFF\0", u16::MAX, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
@@ -267,8 +242,8 @@ fn parse_version_from_the_future_file() {
 
 #[test]
 fn parse_unknown_low_byte_flag_file() {
-    let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", 1, 0b0000_0000_1100_0000, chunks.len() as u32);
+    let chunks: Vec<u8> = fixtures::sample_body();
+    let mut file = fixtures::create_header(b"YFF\0", 1, 0b0000_0000_1100_0000, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
@@ -282,8 +257,8 @@ fn parse_unknown_low_byte_flag_file() {
 
 #[test]
 fn parse_unknown_high_byte_flag_file() {
-    let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", 1, 0b0000_1101_0000_0000, chunks.len() as u32);
+    let chunks: Vec<u8> = fixtures::sample_body();
+    let mut file = fixtures::create_header(b"YFF\0", 1, 0b0000_1101_0000_0000, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
@@ -297,8 +272,8 @@ fn parse_unknown_high_byte_flag_file() {
 
 #[test]
 fn parse_too_long_len_file() {
-    let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32 + 10);
+    let chunks: Vec<u8> = fixtures::sample_body();
+    let mut file = fixtures::create_header(b"YFF\0", 1, 0, chunks.len() as u32 + 10);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
@@ -313,8 +288,8 @@ fn parse_too_long_len_file() {
 
 #[test]
 fn parse_too_small_len_file() {
-    let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32 - 10);
+    let chunks: Vec<u8> = fixtures::sample_body();
+    let mut file = fixtures::create_header(b"YFF\0", 1, 0, chunks.len() as u32 - 10);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
@@ -329,7 +304,7 @@ fn parse_too_small_len_file() {
 
 #[test]
 fn parse_valid_empty_chunks_file() {
-    let file = create_header(b"YFF\0", 1, 0, 0);
+    let file = fixtures::create_header(b"YFF\0", 1, 0, 0);
 
     let f = raw_parser::parse_file(&file).expect("valid operation");
     assert_eq!(
@@ -349,10 +324,10 @@ fn parse_valid_empty_chunks_file() {
 #[test]
 fn parse_unknown_chunk_id_file() {
     let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(b"NOT\0", 3, &[0xB0, 0xB1, 0xB2]));
-    chunks.extend_from_slice(&create_chunk(b"META", 3, &[0xC0, 0xC1, 0xC2]));
-    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
+    chunks.extend_from_slice(&fixtures::create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
+    chunks.extend_from_slice(&fixtures::create_chunk(b"NOT\0", 3, &[0xB0, 0xB1, 0xB2]));
+    chunks.extend_from_slice(&fixtures::create_chunk(b"META", 3, &[0xC0, 0xC1, 0xC2]));
+    let mut file = fixtures::create_header(b"YFF\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let f = raw_parser::parse_file(&file).expect("valid operation");
@@ -386,9 +361,9 @@ fn parse_unknown_chunk_id_file() {
 #[test]
 fn parse_partial_header_chunk_file() {
     let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
+    chunks.extend_from_slice(&fixtures::create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
     chunks.extend_from_slice(b"META");
-    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
+    let mut file = fixtures::create_header(b"YFF\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
@@ -404,9 +379,9 @@ fn parse_partial_header_chunk_file() {
 #[test]
 fn parse_overrun_chunk_file() {
     let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(b"META", 10, &[0xB0, 0xB1, 0xB2]));
-    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
+    chunks.extend_from_slice(&fixtures::create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
+    chunks.extend_from_slice(&fixtures::create_chunk(b"META", 10, &[0xB0, 0xB1, 0xB2]));
+    let mut file = fixtures::create_header(b"YFF\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
