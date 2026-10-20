@@ -1,7 +1,11 @@
 #![forbid(unsafe_code)]
 pub mod raw_parser;
 
-#[repr(u32)]
+#[derive(Debug, PartialEq)]
+pub enum PackageRejection {
+    InvalidFourCC { four_cc: [u8; 4] },
+}
+
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum FourCC {
@@ -53,10 +57,9 @@ pub struct Chunk {
 }
 
 impl Chunk {
-    // TODO: use its own Rejection enum
-    pub fn from_raw(raw: raw_parser::RawChunk) -> Result<Chunk, raw_parser::YffRejection> {
+    pub fn from_raw(raw: raw_parser::RawChunk) -> Result<Chunk, PackageRejection> {
         let Ok(four_cc) = raw.four_cc.try_into() else {
-            return Err(raw_parser::YffRejection::InvalidFourCC {
+            return Err(PackageRejection::InvalidFourCC {
                 four_cc: raw.four_cc,
             });
         };

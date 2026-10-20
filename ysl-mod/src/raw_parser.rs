@@ -1,5 +1,3 @@
-use std::fmt;
-
 #[derive(Debug, PartialEq)]
 pub enum ChunkRejection {
     NotEnoughDataHeader { needed: usize, available: usize },
@@ -14,7 +12,6 @@ pub enum YffRejection {
     UnknownBits { found: u16 },
     InvalidSizeFile { declared: u32, available: usize },
     InvalidChunk(ChunkRejection),
-    InvalidFourCC { four_cc: [u8; 4] },
 }
 
 impl From<ChunkRejection> for YffRejection {
@@ -23,71 +20,11 @@ impl From<ChunkRejection> for YffRejection {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
-struct YffFlag(u16);
-
-impl YffFlag {
-    const ZTSD: YffFlag = YffFlag(0b0000_0001);
-    const VALID: YffFlag = YffFlag::ZTSD;
-    const NULL: YffFlag = YffFlag(0b0000_0000);
-
-    fn empty() -> Self {
-        YffFlag::NULL
-    }
-
-    fn bits(&self) -> u16 {
-        self.0
-    }
-
-    pub fn clear(&mut self) -> &mut Self {
-        *self = YffFlag::empty();
-        self
-    }
-}
-
-impl From<[u8; 2]> for YffFlag {
-    fn from(value: [u8; 2]) -> Self {
-        YffFlag(u16::from_le_bytes(value))
-    }
-}
-
-impl std::ops::BitOr for YffFlag {
-    type Output = Self;
-    fn bitor(self, rhs: Self) -> Self {
-        YffFlag(self.0 | rhs.0)
-    }
-}
-
-impl std::ops::BitAnd for YffFlag {
-    type Output = Self;
-    fn bitand(self, rhs: Self) -> Self {
-        YffFlag(self.0 & rhs.0)
-    }
-}
-
-impl std::ops::Sub for YffFlag {
-    type Output = Self;
-    fn sub(self, rhs: Self) -> Self {
-        YffFlag(self.0 & !rhs.0)
-    }
-}
-
-impl std::ops::Not for YffFlag {
-    type Output = Self;
-    fn not(self) -> Self {
-        YffFlag(!self.0 & 0b1111_1111)
-    }
-}
-
-impl fmt::Display for YffFlag {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:032b}", self.bits())
-    }
-}
-
 const YFF_MAGIC: &[u8; 4] = b"YFF\0";
-pub const SUPPORTED_FORMAT_VERSION: &[u16] = &[1];
+const OLDEST_SUPPORTED_VERSION: u16 = 1;
 pub const CURRENT_FORMAT_VERSION: u16 = 1;
+const ZSTD: u16 = 0b0000_0001;
+const KNOWN_MASK: u16 = ZSTD;
 
 #[repr(C)]
 #[derive(Debug, PartialEq)]
@@ -165,7 +102,10 @@ impl<'a> Iterator for RawChunkIter<'a> {
                 Some(Ok(rc))
             }
 
-            Err(e) => Some(Err(e)),
+            Err(e) => {
+                self.state = &[];
+                Some(Err(e))
+            }
         }
     }
 }
@@ -191,15 +131,13 @@ pub fn parse_header(bytes: &[u8]) -> Result<(RawFileHeader, &[u8]), YffRejection
     }
 
     let version = u16::from_le_bytes(header.format_version);
-    if !SUPPORTED_FORMAT_VERSION.contains(&version) {
+    if !(OLDEST_SUPPORTED_VERSION..=CURRENT_FORMAT_VERSION).contains(&version) {
         return Err(YffRejection::UnsupportedVersion { found: version });
     }
 
-    let flags = YffFlag::from(header.flags);
-    if (flags & !YffFlag::VALID) != YffFlag::NULL {
-        return Err(YffRejection::UnknownBits {
-            found: flags.bits(),
-        });
+    let flags = u16::from_le_bytes(header.flags);
+    if (flags & !KNOWN_MASK) != 0 {
+        return Err(YffRejection::UnknownBits { found: flags });
     }
 
     let len: u32 = u32::from_le_bytes(header.len);

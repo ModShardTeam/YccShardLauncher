@@ -21,6 +21,16 @@ fn create_header(magic: &[u8; 4], format_version: u16, flags: u16, len: u32) -> 
     array
 }
 
+fn sample_body() -> Vec<u8> {
+    let mut body: Vec<u8> = vec![];
+    body.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
+    body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
+    body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
+    body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
+    body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
+    body
+}
+
 #[test]
 fn parse_empty() {
     let input: Vec<u8> = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
@@ -157,13 +167,7 @@ fn parse_consecutive_chunks() {
 
 #[test]
 fn parse_valid_file() {
-    let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
-
+    let chunks: Vec<u8> = sample_body();
     let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -205,13 +209,7 @@ fn parse_valid_file() {
 
 #[test]
 fn parse_bad_magic_file() {
-    let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
-
+    let chunks: Vec<u8> = sample_body();
     let mut file = create_header(b"BAD\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -220,14 +218,8 @@ fn parse_bad_magic_file() {
 }
 
 #[test]
-fn parse_null_versio_file() {
-    let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
-
+fn parse_null_version_file() {
+    let chunks: Vec<u8> = sample_body();
     let mut file = create_header(b"YFF\0", 0, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -240,13 +232,7 @@ fn parse_null_versio_file() {
 
 #[test]
 fn parse_version_from_the_future_file() {
-    let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
-
+    let chunks: Vec<u8> = sample_body();
     let mut file = create_header(b"YFF\0", u16::MAX, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -258,14 +244,8 @@ fn parse_version_from_the_future_file() {
 }
 
 #[test]
-fn parse_unknown_flag_file() {
-    let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
-
+fn parse_unknown_low_byte_flag_file() {
+    let chunks: Vec<u8> = sample_body();
     let mut file = create_header(b"YFF\0", 1, 0b1100_0000, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -277,14 +257,21 @@ fn parse_unknown_flag_file() {
 }
 
 #[test]
-fn parse_too_long_len_file() {
-    let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
+fn parse_unknown_high_byte_flag_file() {
+    let chunks: Vec<u8> = sample_body();
+    let mut file = create_header(b"YFF\0", 1, 0b0000_1101, chunks.len() as u32);
+    file.extend_from_slice(&chunks);
 
+    let rej = raw_parser::parse_file(&file).unwrap_err();
+    assert_eq!(
+        rej,
+        raw_parser::YffRejection::UnknownBits { found: 0b0000_1101 }
+    );
+}
+
+#[test]
+fn parse_too_long_len_file() {
+    let chunks: Vec<u8> = sample_body();
     let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32 + 10);
     file.extend_from_slice(&chunks);
 
@@ -300,13 +287,7 @@ fn parse_too_long_len_file() {
 
 #[test]
 fn parse_too_small_len_file() {
-    let mut chunks: Vec<u8> = vec![];
-    chunks.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    chunks.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
-
+    let chunks: Vec<u8> = sample_body();
     let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32 - 10);
     file.extend_from_slice(&chunks);
 
@@ -317,5 +298,79 @@ fn parse_too_small_len_file() {
             declared: 49,
             available: 59
         }
+    );
+}
+
+#[test]
+fn parse_valid_empty_chunks_file() {
+    let file = create_header(b"YFF\0", 1, 0, 0);
+
+    let f = raw_parser::parse_file(&file).expect("valid operation");
+    assert_eq!(
+        f,
+        raw_parser::RawFile {
+            header: raw_parser::RawFileHeader {
+                magic: *b"YFF\0",
+                len: [0x00, 0x00, 0x00, 0x00],
+                flags: [0x00, 0x00],
+                format_version: [0x01, 0x00],
+            },
+            chunks: vec![],
+        }
+    );
+}
+
+#[test]
+fn parse_unknown_chunk_id_file() {
+    let mut chunks: Vec<u8> = vec![];
+    chunks.extend_from_slice(&create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
+    chunks.extend_from_slice(&create_chunk(b"NOT\0", 3, &[0xB0, 0xB1, 0xB2]));
+    chunks.extend_from_slice(&create_chunk(b"META", 3, &[0xC0, 0xC1, 0xC2]));
+    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
+    file.extend_from_slice(&chunks);
+
+    let f = raw_parser::parse_file(&file).expect("valid operation");
+    assert_eq!(
+        f,
+        raw_parser::RawFile {
+            header: raw_parser::RawFileHeader {
+                magic: *b"YFF\0",
+                len: [0x21, 0x00, 0x00, 0x00],
+                flags: [0x00, 0x00],
+                format_version: [0x01, 0x00],
+            },
+            chunks: vec![
+                raw_parser::RawChunk {
+                    four_cc: *b"META",
+                    payload: &[0xA0, 0xA1, 0xA2]
+                },
+                raw_parser::RawChunk {
+                    four_cc: *b"NOT\0",
+                    payload: &[0xB0, 0xB1, 0xB2]
+                },
+                raw_parser::RawChunk {
+                    four_cc: *b"META",
+                    payload: &[0xC0, 0xC1, 0xC2]
+                }
+            ],
+        }
+    );
+}
+
+#[test]
+fn parse_partial_header_chunk_file() {
+    let mut chunks: Vec<u8> = vec![];
+    chunks.extend_from_slice(&create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
+    chunks.extend_from_slice(b"META");
+    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
+    file.extend_from_slice(&chunks);
+
+    let rej = raw_parser::parse_file(&file).unwrap_err();
+    assert_eq!(
+        rej,
+        raw_parser::YffRejection::InvalidChunk(raw_parser::ChunkRejection::NotEnoughDataHeader {
+            needed: 8,
+            available: 4
+        })
     );
 }
