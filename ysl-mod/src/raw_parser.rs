@@ -196,7 +196,7 @@ pub fn parse_header(bytes: &[u8]) -> Result<(RawFileHeader, &[u8]), YffRejection
     }
 
     let flags = YffFlag::from(header.flags);
-    if (flags & YffFlag::VALID) != YffFlag::NULL {
+    if (flags & !YffFlag::VALID) != YffFlag::NULL {
         return Err(YffRejection::UnknownBits {
             found: flags.bits(),
         });
