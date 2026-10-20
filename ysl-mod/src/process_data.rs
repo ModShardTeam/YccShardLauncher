@@ -90,11 +90,13 @@ impl<'a> File<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
+#[serde(deny_unknown_fields, default)]
 pub struct Metadata {
     pub mod_name: String,
     pub version: String,
-    pub target_version: String,
+    pub engine: String,
+    pub game_version: String,
     pub author_name: String,
     pub short_desc: Option<String>,
     pub dependencies: Vec<String>,

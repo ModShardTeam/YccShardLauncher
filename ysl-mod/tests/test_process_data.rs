@@ -79,7 +79,8 @@ fn process_valid_meta_package() {
     let toml_metadata = r"
 mod_name = 'test_mod'
 version = '0.1.0'
-target_version = '1.0.0'
+engine = 'rhai'
+game_version = '1.0.0'
 author_name = 'test_author'
 short_desc = 'this is a test'
 dependencies = [
@@ -105,7 +106,8 @@ dependencies = [
             meta: process_data::Metadata {
                 mod_name: "test_mod".to_string(),
                 version: "0.1.0".to_string(),
-                target_version: "1.0.0".to_string(),
+                engine: "rhai".to_string(),
+                game_version: "1.0.0".to_string(),
                 author_name: "test_author".to_string(),
                 short_desc: Some("this is a test".to_string()),
                 dependencies: vec!["other_test".to_string(), "yet_another_test".to_string()],
