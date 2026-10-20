@@ -165,6 +165,29 @@ fn parse_consecutive_chunks() {
 }
 
 #[test]
+fn parse_iterator_stop() {
+    let mut broken_stream = create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]);
+    broken_stream.extend_from_slice(b"META");
+    let mut iter = raw_parser::RawChunkIter::from(&broken_stream[..]);
+
+    assert_eq!(
+        iter.next(),
+        Some(Ok(raw_parser::RawChunk {
+            four_cc: *b"META",
+            payload: &[0xA0, 0xA1, 0xA2]
+        }))
+    );
+    assert_eq!(
+        iter.next(),
+        Some(Err(raw_parser::ChunkRejection::NotEnoughDataHeader {
+            needed: 8,
+            available: 4
+        }))
+    );
+    assert_eq!(iter.next(), None);
+}
+
+#[test]
 fn parse_valid_file() {
     let chunks: Vec<u8> = sample_body();
     let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
@@ -374,6 +397,24 @@ fn parse_partial_header_chunk_file() {
         raw_parser::YffRejection::InvalidChunk(raw_parser::ChunkRejection::NotEnoughDataHeader {
             needed: 8,
             available: 4
+        })
+    );
+}
+
+#[test]
+fn parse_overrun_chunk_file() {
+    let mut chunks: Vec<u8> = vec![];
+    chunks.extend_from_slice(&create_chunk(b"META", 3, &[0xA0, 0xA1, 0xA2]));
+    chunks.extend_from_slice(&create_chunk(b"META", 10, &[0xB0, 0xB1, 0xB2]));
+    let mut file = create_header(b"YFF\0", 1, 0, chunks.len() as u32);
+    file.extend_from_slice(&chunks);
+
+    let rej = raw_parser::parse_file(&file).unwrap_err();
+    assert_eq!(
+        rej,
+        raw_parser::YffRejection::InvalidChunk(raw_parser::ChunkRejection::NotEnoughDataPayload {
+            declared: 10,
+            available: 3
         })
     );
 }
