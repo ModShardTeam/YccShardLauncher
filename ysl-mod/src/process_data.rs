@@ -5,10 +5,9 @@ use crate::raw_parser;
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum PackageRejection {
-    InvalidFourCC { four_cc: [u8; 4] },
     NoMetaChunk,
     MultipleMetaChunkFound,
-    FailedDecodedChunk(String),
+    InvalidMetadata(toml::de::Error),
 }
 
 #[non_exhaustive]
@@ -59,13 +58,11 @@ pub struct Chunk<'a> {
 }
 
 impl<'a> Chunk<'a> {
-    pub fn from_raw(raw: raw_parser::RawChunk) -> Result<Chunk, PackageRejection> {
+    pub fn from_raw(raw: raw_parser::RawChunk<'a>) -> Option<Chunk<'a>> {
         let Ok(four_cc) = raw.four_cc.try_into() else {
-            return Err(PackageRejection::InvalidFourCC {
-                four_cc: raw.four_cc,
-            });
+            return None;
         };
-        Ok(Chunk {
+        Some(Chunk {
             four_cc,
             payload: raw.payload,
         })
@@ -79,17 +76,17 @@ pub struct File<'a> {
 }
 
 impl<'a> File<'a> {
-    pub fn from_raw(raw: raw_parser::RawFile) -> Result<File, PackageRejection> {
+    pub fn from_raw(raw: raw_parser::RawFile<'a>) -> File<'a> {
         let header = FileHeader::from_raw(raw.header);
 
-        Ok(File {
+        File {
             header,
             chunks: raw
                 .chunks
                 .iter()
-                .filter_map(|&rc| Chunk::from_raw(rc).ok())
+                .filter_map(|&rc| Chunk::from_raw(rc))
                 .collect(),
-        })
+        }
     }
 }
 
@@ -108,33 +105,22 @@ pub struct Package {
     pub meta: Metadata,
 }
 
-enum SearchU<T> {
-    None,
-    Unique(T),
-    Multiple,
-}
-
 pub fn process_package(file: File) -> Result<Package, PackageRejection> {
-    let meta_chunk = match file
+    let mut metadata_filter = file
         .chunks
         .iter()
-        .filter(|&c| c.four_cc == FourCC::Metadata)
-        .fold(SearchU::None, |status, x| match status {
-            SearchU::None => SearchU::Unique(x),
-            _ => SearchU::Multiple,
-        }) {
-        SearchU::Unique(x) => x,
-        SearchU::None => {
-            return Err(PackageRejection::NoMetaChunk);
-        }
-        SearchU::Multiple => {
-            return Err(PackageRejection::MultipleMetaChunkFound);
-        }
+        .filter(|&c| c.four_cc == FourCC::Metadata);
+
+    let Some(meta_chunk) = metadata_filter.next() else {
+        return Err(PackageRejection::NoMetaChunk);
     };
 
-    match toml::from_slice(meta_chunk.payload) {
-        Err(e) => Err(PackageRejection::FailedDecodedChunk(format!("{e:#}"))),
+    if metadata_filter.next().is_some() {
+        return Err(PackageRejection::MultipleMetaChunkFound);
+    }
 
+    match toml::from_slice(meta_chunk.payload) {
+        Err(e) => Err(PackageRejection::InvalidMetadata(e)),
         Ok(meta) => Ok(Package { meta }),
     }
 }

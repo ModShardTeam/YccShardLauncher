@@ -23,12 +23,8 @@ fn convert_invalid_id_chunk() {
     let rej = process_data::Chunk::from_raw(raw_parser::RawChunk {
         four_cc: *b"BAD\0",
         payload: &[0x00, 0x01, 0x02, 0x03],
-    })
-    .unwrap_err();
-    assert_eq!(
-        rej,
-        process_data::PackageRejection::InvalidFourCC { four_cc: *b"BAD\0" },
-    )
+    });
+    assert_eq!(rej, None,)
 }
 
 #[test]
@@ -56,7 +52,7 @@ fn convert_skips_unknown_id() {
         ],
     };
 
-    let file = process_data::File::from_raw(raw_file).expect("valid operation");
+    let file = process_data::File::from_raw(raw_file);
     assert_eq!(
         file,
         process_data::File {
