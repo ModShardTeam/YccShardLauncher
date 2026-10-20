@@ -1,6 +1,7 @@
 #![forbid(unsafe_code)]
 pub mod raw_parser;
 
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum PackageRejection {
     InvalidFourCC { four_cc: [u8; 4] },

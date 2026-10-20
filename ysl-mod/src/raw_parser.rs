@@ -1,9 +1,11 @@
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum ChunkRejection {
     NotEnoughDataHeader { needed: usize, available: usize },
     NotEnoughDataPayload { declared: u32, available: usize },
 }
 
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum YffRejection {
     NotEnoughDataHeader { needed: usize, available: usize },
@@ -23,8 +25,10 @@ impl From<ChunkRejection> for YffRejection {
 const YFF_MAGIC: &[u8; 4] = b"YFF\0";
 const OLDEST_SUPPORTED_VERSION: u16 = 1;
 pub const CURRENT_FORMAT_VERSION: u16 = 1;
-const ZSTD: u16 = 0b0000_0001;
-const KNOWN_MASK: u16 = ZSTD;
+
+// TODO: implement decompression
+const ZSTD: u16 = 0b0000_0000_0000_0001;
+const KNOWN_MASK: u16 = 0;
 
 #[repr(C)]
 #[derive(Debug, PartialEq)]

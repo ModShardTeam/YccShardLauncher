@@ -1,4 +1,3 @@
-use std::vec;
 use ysl_mod::raw_parser;
 
 const ID_META: &[u8; 4] = b"META";
@@ -246,26 +245,30 @@ fn parse_version_from_the_future_file() {
 #[test]
 fn parse_unknown_low_byte_flag_file() {
     let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", 1, 0b1100_0000, chunks.len() as u32);
+    let mut file = create_header(b"YFF\0", 1, 0b0000_0000_1100_0000, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
     assert_eq!(
         rej,
-        raw_parser::YffRejection::UnknownBits { found: 0b1100_0000 }
+        raw_parser::YffRejection::UnknownBits {
+            found: 0b0000_0000_1100_0000
+        }
     );
 }
 
 #[test]
 fn parse_unknown_high_byte_flag_file() {
     let chunks: Vec<u8> = sample_body();
-    let mut file = create_header(b"YFF\0", 1, 0b0000_1101, chunks.len() as u32);
+    let mut file = create_header(b"YFF\0", 1, 0b0000_1101_0000_0000, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
     let rej = raw_parser::parse_file(&file).unwrap_err();
     assert_eq!(
         rej,
-        raw_parser::YffRejection::UnknownBits { found: 0b0000_1101 }
+        raw_parser::YffRejection::UnknownBits {
+            found: 0b0000_1101_0000_0000
+        }
     );
 }
 
