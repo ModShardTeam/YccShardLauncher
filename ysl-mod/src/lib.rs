@@ -2,24 +2,25 @@
 pub mod raw_parser;
 
 #[repr(u32)]
+#[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum FourCC {
-    LuaScript = u32::from_le_bytes(*b"LUA\0"),
-    RhaiScript = u32::from_le_bytes(*b"RHAI"),
-    Metadata = u32::from_le_bytes(*b"META"),
-    Png = u32::from_le_bytes(*b"PNG\0"),
+    LuaScript,
+    RhaiScript,
+    Metadata,
+    Png,
 }
 
-impl TryFrom<u32> for FourCC {
-    type Error = ();
+impl TryFrom<[u8; 4]> for FourCC {
+    type Error = [u8; 4];
 
-    fn try_from(v: u32) -> Result<Self, Self::Error> {
-        match v {
-            x if x == FourCC::LuaScript as u32 => Ok(FourCC::LuaScript),
-            x if x == FourCC::RhaiScript as u32 => Ok(FourCC::RhaiScript),
-            x if x == FourCC::Metadata as u32 => Ok(FourCC::Metadata),
-            x if x == FourCC::Png as u32 => Ok(FourCC::Png),
-            _ => Err(()),
+    fn try_from(v: [u8; 4]) -> Result<Self, [u8; 4]> {
+        match &v {
+            b"LUA\0" => Ok(FourCC::LuaScript),
+            b"RHAI" => Ok(FourCC::RhaiScript),
+            b"META" => Ok(FourCC::Metadata),
+            b"PNG\0" => Ok(FourCC::Png),
+            _ => Err(v),
         }
     }
 }
@@ -52,8 +53,9 @@ pub struct Chunk {
 }
 
 impl Chunk {
+    // TODO: use its own Rejection enum
     pub fn from_raw(raw: raw_parser::RawChunk) -> Result<Chunk, raw_parser::YffRejection> {
-        let Ok(four_cc) = u32::from_le_bytes(raw.four_cc).try_into() else {
+        let Ok(four_cc) = raw.four_cc.try_into() else {
             return Err(raw_parser::YffRejection::InvalidFourCC {
                 four_cc: raw.four_cc,
             });

@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, PartialEq)]
 pub enum ChunkRejection {
     NotEnoughDataHeader { needed: usize, available: usize },
@@ -9,7 +11,7 @@ pub enum YffRejection {
     NotEnoughDataHeader { needed: usize, available: usize },
     BadMagic { found: [u8; 4] },
     UnsupportedVersion { found: u16 },
-    InvalidFlags { found: u16 },
+    UnknownBits { found: u16 },
     InvalidSizeFile { declared: u32, available: usize },
     InvalidChunk(ChunkRejection),
     InvalidFourCC { four_cc: [u8; 4] },
@@ -21,7 +23,71 @@ impl From<ChunkRejection> for YffRejection {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct YffFlag(u16);
+
+impl YffFlag {
+    const ZTSD: YffFlag = YffFlag(0b0000_0001);
+    const VALID: YffFlag = YffFlag::ZTSD;
+    const NULL: YffFlag = YffFlag(0b0000_0000);
+
+    fn empty() -> Self {
+        YffFlag::NULL
+    }
+
+    fn bits(&self) -> u16 {
+        self.0
+    }
+
+    pub fn clear(&mut self) -> &mut Self {
+        *self = YffFlag::empty();
+        self
+    }
+}
+
+impl From<[u8; 2]> for YffFlag {
+    fn from(value: [u8; 2]) -> Self {
+        YffFlag(u16::from_le_bytes(value))
+    }
+}
+
+impl std::ops::BitOr for YffFlag {
+    type Output = Self;
+    fn bitor(self, rhs: Self) -> Self {
+        YffFlag(self.0 | rhs.0)
+    }
+}
+
+impl std::ops::BitAnd for YffFlag {
+    type Output = Self;
+    fn bitand(self, rhs: Self) -> Self {
+        YffFlag(self.0 & rhs.0)
+    }
+}
+
+impl std::ops::Sub for YffFlag {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self {
+        YffFlag(self.0 & !rhs.0)
+    }
+}
+
+impl std::ops::Not for YffFlag {
+    type Output = Self;
+    fn not(self) -> Self {
+        YffFlag(!self.0 & 0b1111_1111)
+    }
+}
+
+impl fmt::Display for YffFlag {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:032b}", self.bits())
+    }
+}
+
 const YFF_MAGIC: &[u8; 4] = b"YFF\0";
+pub const SUPPORTED_FORMAT_VERSION: &[u16] = &[1];
+pub const CURRENT_FORMAT_VERSION: u16 = 1;
 
 #[repr(C)]
 #[derive(Debug, PartialEq)]
@@ -121,6 +187,18 @@ pub fn parse_header(bytes: &[u8]) -> Result<(RawFileHeader, &[u8]), YffRejection
     if header.magic != *YFF_MAGIC {
         return Err(YffRejection::BadMagic {
             found: header.magic,
+        });
+    }
+
+    let version = u16::from_le_bytes(header.format_version);
+    if !SUPPORTED_FORMAT_VERSION.contains(&version) {
+        return Err(YffRejection::UnsupportedVersion { found: version });
+    }
+
+    let flags = YffFlag::from(header.flags);
+    if (flags & YffFlag::VALID) != YffFlag::NULL {
+        return Err(YffRejection::UnknownBits {
+            found: flags.bits(),
         });
     }
 
