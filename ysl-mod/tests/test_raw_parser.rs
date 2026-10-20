@@ -156,8 +156,8 @@ fn parse_file() {
     chunks.extend_from_slice(&create_byte_array(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
 
     let mut file: Vec<u8> = b"YFF\0".to_vec();
-    file.extend_from_slice(&(chunks.len() as u32).to_le_bytes());
     file.extend_from_slice(&[0x01, 0x00, 0x00, 0x00]);
+    file.extend_from_slice(&(chunks.len() as u32).to_le_bytes());
     file.extend_from_slice(&chunks);
 
     let f = raw_parser::parse_file(&file).expect("valid operation");

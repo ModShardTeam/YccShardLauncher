@@ -7,9 +7,18 @@ pub enum ChunkRejection {
 #[derive(Debug, PartialEq)]
 pub enum YffRejection {
     NotEnoughDataHeader { needed: usize, available: usize },
+    BadMagic { found: [u8; 4] },
+    UnsupportedVersion { found: u16 },
+    InvalidFlags { found: u16 },
     InvalidSizeFile { declared: u32, available: usize },
     InvalidChunk(ChunkRejection),
     InvalidFourCC { four_cc: [u8; 4] },
+}
+
+impl From<ChunkRejection> for YffRejection {
+    fn from(value: ChunkRejection) -> Self {
+        YffRejection::InvalidChunk(value)
+    }
 }
 
 const YFF_MAGIC: &[u8; 4] = b"YFF\0";
@@ -18,9 +27,9 @@ const YFF_MAGIC: &[u8; 4] = b"YFF\0";
 #[derive(Debug, PartialEq)]
 pub struct RawFileHeader {
     pub magic: [u8; 4],
-    pub len: [u8; 4],
     pub format_version: [u8; 2],
     pub flags: [u8; 2],
+    pub len: [u8; 4],
 }
 
 const _: () = assert!(size_of::<RawFileHeader>() == 12);
@@ -28,14 +37,9 @@ const _: () = assert!(size_of::<RawFileHeader>() == 12);
 impl RawFileHeader {
     fn read(bytes: &[u8]) -> Option<(RawFileHeader, &[u8])> {
         let (&magic, rest) = bytes.split_first_chunk()?;
-
-        if magic != *YFF_MAGIC {
-            return None;
-        }
-
-        let (&len, rest) = rest.split_first_chunk()?;
         let (&format_version, rest) = rest.split_first_chunk()?;
         let (&flags, rest) = rest.split_first_chunk()?;
+        let (&len, rest) = rest.split_first_chunk()?;
         Some((
             RawFileHeader {
                 magic,
@@ -70,35 +74,32 @@ pub struct RawChunk<'a> {
     pub payload: &'a [u8],
 }
 
-struct RawChunkIter<'a> {
+pub struct RawChunkIter<'a> {
     state: &'a [u8],
-    stopping_reason: Option<YffRejection>,
 }
 
 impl<'a> From<&'a [u8]> for RawChunkIter<'a> {
     fn from(value: &'a [u8]) -> Self {
-        RawChunkIter {
-            state: value,
-            stopping_reason: None,
-        }
+        RawChunkIter { state: value }
     }
 }
 
 impl<'a> Iterator for RawChunkIter<'a> {
-    type Item = RawChunk<'a>;
+    type Item = Result<RawChunk<'a>, ChunkRejection>;
 
-    fn next(&mut self) -> Option<RawChunk<'a>> {
+    fn next(&mut self) -> Option<Result<RawChunk<'a>, ChunkRejection>> {
         let val = self.state;
+        if val.is_empty() {
+            return None;
+        }
+
         match parse_chunk(val) {
             Ok((rc, r)) => {
                 self.state = r;
-                Some(rc)
+                Some(Ok(rc))
             }
 
-            Err(e) => {
-                self.stopping_reason = Some(YffRejection::InvalidChunk(e));
-                None
-            }
+            Err(e) => Some(Err(e)),
         }
     }
 }
@@ -117,7 +118,14 @@ pub fn parse_header(bytes: &[u8]) -> Result<(RawFileHeader, &[u8]), YffRejection
         });
     };
 
+    if header.magic != *YFF_MAGIC {
+        return Err(YffRejection::BadMagic {
+            found: header.magic,
+        });
+    }
+
     let len: u32 = u32::from_le_bytes(header.len);
+    // exclude the first 12 bytes, RIFF-style
     if rest.len() != len as usize {
         return Err(YffRejection::InvalidSizeFile {
             declared: len,
@@ -157,12 +165,8 @@ pub fn parse_file<'a>(bytes: &'a [u8]) -> Result<RawFile<'a>, YffRejection> {
     let (raw_header, raw_chunks) = parse_header(bytes)?;
     let iter = RawChunkIter::from(raw_chunks);
 
-    let mut raw_chunks = vec![];
-    for raw_chunk in iter.fuse() {
-        raw_chunks.push(raw_chunk)
-    }
     Ok(RawFile {
         header: raw_header,
-        chunks: raw_chunks,
+        chunks: iter.collect::<Result<_, _>>()?,
     })
 }
