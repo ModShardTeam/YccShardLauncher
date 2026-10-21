@@ -9,8 +9,15 @@ use crate::raw_parser;
 pub enum PackageRejection {
     NoMetaChunk,
     MultipleMetaChunkFound,
+
+    // metaata related rejections
     InvalidMetadata(toml::de::Error),
+
+    // rhai related rejections
     InvalidRhai(String),
+    RhaiNullPayload,
+    RhaiInvalidNameLen,
+    RhaiInvalidName(String),
 }
 
 #[non_exhaustive]
@@ -65,6 +72,7 @@ impl<'a> Chunk<'a> {
         let Ok(four_cc) = raw.four_cc.try_into() else {
             return None;
         };
+
         Some(Chunk {
             four_cc,
             payload: raw.payload,
@@ -109,7 +117,24 @@ pub struct Metadata {
 #[derive(Debug, PartialEq)]
 pub struct Package {
     pub meta: Metadata,
-    pub rhai_scripts: Vec<String>,
+    pub rhai_scripts: BTreeMap<String, String>,
+}
+
+fn rhai_decoder(payload: &[u8]) -> Result<(String, String), PackageRejection> {
+    let Some((&name_len, rest)) = payload.split_first() else {
+        return Err(PackageRejection::RhaiNullPayload);
+    };
+
+    let Some((name_bytes, rest)) = rest.split_at_checked(name_len as usize) else {
+        return Err(PackageRejection::RhaiInvalidNameLen);
+    };
+
+    let name = String::from_utf8(name_bytes.to_vec())
+        .map_err(|e| PackageRejection::RhaiInvalidName(format!("{e:#}")))?;
+    let data = String::from_utf8(rest.to_vec())
+        .map_err(|e| PackageRejection::InvalidRhai(format!("{e:#}")))?;
+
+    Ok((name, data))
 }
 
 pub fn process_package<'a>(file: File<'a>) -> Result<Package, PackageRejection> {
@@ -122,11 +147,6 @@ pub fn process_package<'a>(file: File<'a>) -> Result<Package, PackageRejection> 
         .chunks
         .iter()
         .filter(|&c| c.four_cc == FourCC::RhaiScript);
-
-    let rhai_decoder = rhai_filter.map(|c| {
-        String::from_utf8(c.payload.to_vec())
-            .map_err(|e| PackageRejection::InvalidRhai(format!("{e:#}")))
-    });
 
     let Some(meta_chunk) = metadata_filter.next() else {
         return Err(PackageRejection::NoMetaChunk);
@@ -141,6 +161,8 @@ pub fn process_package<'a>(file: File<'a>) -> Result<Package, PackageRejection> 
 
     Ok(Package {
         meta,
-        rhai_scripts: rhai_decoder.collect::<Result<_, _>>()?,
+        rhai_scripts: rhai_filter
+            .map(|c| rhai_decoder(c.payload))
+            .collect::<Result<_, _>>()?,
     })
 }

@@ -127,7 +127,7 @@ fn process_valid_meta_package() {
                     )
                 ]),
             },
-            rhai_scripts: vec![],
+            rhai_scripts: BTreeMap::new(),
         }
     )
 }
@@ -174,19 +174,26 @@ fn convert_two_metas_package() {
 
 #[test]
 fn process_valid_rhai_package() {
+    let rhai_script = "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }";
+    let mut rhai_payload = vec![];
+    rhai_payload.push(3u8);
+    rhai_payload.extend_from_slice(b"ABC");
+    rhai_payload.extend_from_slice(rhai_script.as_bytes());
     let file = process_data::File {
         header: process_data::FileHeader {
             format_version: 1,
             flags: 0,
         },
-        chunks: vec![process_data::Chunk {
-            four_cc: process_data::FourCC::Metadata,
-            payload: common::dummy_metadata().as_bytes(),
-        },
-        process_data::Chunk {
-            four_cc: process_data::FourCC::RhaiScript,
-            payload: "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }".as_bytes(),
-        }],
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: common::dummy_metadata().as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &rhai_payload,
+            },
+        ],
     };
 
     let package = process_data::process_package(file).expect("valid operation");
@@ -227,7 +234,14 @@ fn process_valid_rhai_package() {
                     )
                 ]),
             },
-            rhai_scripts: vec!["fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }".to_string()],
+            rhai_scripts: BTreeMap::from(
+                [
+                    (
+                        "ABC".to_string(),
+                        "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }".to_string()
+                    )
+                ]
+            ),
         }
     )
 }
