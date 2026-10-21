@@ -2,7 +2,8 @@
 pub mod process_data;
 pub mod raw_parser;
 
-enum ParserRejection {
+#[non_exhaustive]
+pub enum ParserRejection {
     YffRejection(raw_parser::YffRejection),
     PackageRejection(process_data::PackageRejection),
 }
@@ -19,7 +20,7 @@ impl From<process_data::PackageRejection> for ParserRejection {
     }
 }
 
-fn parse(bytes: &[u8]) -> Result<process_data::Package, ParserRejection> {
+pub fn parse(bytes: &[u8]) -> Result<process_data::Package, ParserRejection> {
     let raw_file = raw_parser::parse_file(bytes)?;
     let file = process_data::File::from_raw(raw_file);
     let package = process_data::process_package(file)?;

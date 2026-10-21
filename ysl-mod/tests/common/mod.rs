@@ -28,3 +28,19 @@ pub fn sample_body() -> Vec<u8> {
     body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
     body
 }
+
+pub fn dummy_metadata() -> &'static str {
+    r#"
+mod_name = "test_mod"
+version = "0.1.0"
+engine = "rhai"
+game_version = "1.0.0"
+author_name = "test_author"
+short_desc = "this is a test"
+
+[dependencies]
+other_test = "=1.0"
+yet_another_test = ">0.2"
+
+"#
+}

@@ -10,6 +10,7 @@ pub enum PackageRejection {
     NoMetaChunk,
     MultipleMetaChunkFound,
     InvalidMetadata(toml::de::Error),
+    InvalidRhai(String),
 }
 
 #[non_exhaustive]
@@ -108,24 +109,46 @@ pub struct Metadata {
 #[derive(Debug, PartialEq)]
 pub struct Package {
     pub meta: Metadata,
+    pub rhai_scripts: Vec<String>,
 }
 
-pub fn process_package(file: File) -> Result<Package, PackageRejection> {
+pub fn process_package<'a>(file: File<'a>) -> Result<Package, PackageRejection> {
     let mut metadata_filter = file
         .chunks
         .iter()
         .filter(|&c| c.four_cc == FourCC::Metadata);
 
+    let rhai_filter = file
+        .chunks
+        .iter()
+        .filter(|&c| c.four_cc == FourCC::RhaiScript);
+
+    let rhai_decoder = rhai_filter
+        .filter_map(|c: &Chunk<'a>| {
+            // TODO: do not silence zstd errors
+            if file.header.flags & raw_parser::ZSTD != 0 {
+                zstd::stream::decode_all(c.payload).ok()
+            } else {
+                Some(c.payload.to_vec())
+            }
+        })
+        .map(|stream| String::from_utf8(stream));
+
     let Some(meta_chunk) = metadata_filter.next() else {
         return Err(PackageRejection::NoMetaChunk);
     };
-
     if metadata_filter.next().is_some() {
         return Err(PackageRejection::MultipleMetaChunkFound);
     }
+    let meta = match toml::from_slice(meta_chunk.payload) {
+        Err(e) => return Err(PackageRejection::InvalidMetadata(e)),
+        Ok(meta) => meta,
+    };
 
-    match toml::from_slice(meta_chunk.payload) {
-        Err(e) => Err(PackageRejection::InvalidMetadata(e)),
-        Ok(meta) => Ok(Package { meta }),
-    }
+    Ok(Package {
+        meta,
+        rhai_scripts: rhai_decoder
+            .collect::<Result<_, _>>()
+            .map_err(|e| PackageRejection::InvalidRhai(format!("{e:#}")))?,
+    })
 }
