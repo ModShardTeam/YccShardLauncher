@@ -3,6 +3,7 @@
 pub enum ChunkRejection {
     NotEnoughDataHeader { needed: usize, available: usize },
     NotEnoughDataPayload { declared: u32, available: usize },
+    TooBigPayload { declared: usize },
 }
 
 #[non_exhaustive]
@@ -13,6 +14,7 @@ pub enum YffRejection {
     UnsupportedVersion { found: u16 },
     UnknownBits { found: u16 },
     InvalidSizeFile { declared: u32, available: usize },
+    TooBigFile { declared: usize },
     InvalidChunk(ChunkRejection),
 }
 
@@ -26,8 +28,10 @@ const YFF_MAGIC: &[u8; 4] = b"YFF\0";
 const OLDEST_SUPPORTED_VERSION: u16 = 1;
 pub const CURRENT_FORMAT_VERSION: u16 = 1;
 
-pub const ZSTD: u16 = 0b0000_0000_0000_0001;
-const KNOWN_MASK: u16 = ZSTD;
+const KNOWN_MASK: u16 = 0;
+
+const MAXIMUM_SIZE_YFF: usize = 1_024 * 1_024; // 1 MiB
+const MAXIMUM_SIZE_PAYLOAD: usize = 10 * 1_024; // 10 kiB
 
 #[repr(C)]
 #[derive(Debug, PartialEq)]
@@ -170,6 +174,11 @@ pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(RawChunk<'a>, &'a [u8]), Chun
             available: rest.len(),
         });
     };
+    if payload.len() > MAXIMUM_SIZE_PAYLOAD {
+        return Err(ChunkRejection::TooBigPayload {
+            declared: payload.len(),
+        });
+    }
 
     Ok((
         RawChunk {
@@ -181,6 +190,12 @@ pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(RawChunk<'a>, &'a [u8]), Chun
 }
 
 pub fn parse_file<'a>(bytes: &'a [u8]) -> Result<RawFile<'a>, YffRejection> {
+    if bytes.len() >= MAXIMUM_SIZE_YFF {
+        return Err(YffRejection::TooBigFile {
+            declared: bytes.len(),
+        });
+    }
+
     let (raw_header, raw_chunks) = parse_header(bytes)?;
     let iter = RawChunkIter::from(raw_chunks);
 
