@@ -1,4 +1,6 @@
 mod common;
+use std::collections::BTreeMap;
+
 use ysl_mod::process_data;
 use ysl_mod::raw_parser;
 
@@ -76,18 +78,19 @@ fn convert_skips_unknown_id() {
 
 #[test]
 fn process_valid_meta_package() {
-    let toml_metadata = r"
-mod_name = 'test_mod'
-version = '0.1.0'
-engine = 'rhai'
-game_version = '1.0.0'
-author_name = 'test_author'
-short_desc = 'this is a test'
-dependencies = [
-    'other_test',
-    'yet_another_test',
-   ]
-";
+    let toml_metadata = r#"
+mod_name = "test_mod"
+version = "0.1.0"
+engine = "rhai"
+game_version = "1.0.0"
+author_name = "test_author"
+short_desc = "this is a test"
+
+[dependencies]
+other_test = "=1.0"
+yet_another_test = ">0.2"
+
+"#;
     let file = process_data::File {
         header: process_data::FileHeader {
             format_version: 1,
@@ -105,12 +108,37 @@ dependencies = [
         process_data::Package {
             meta: process_data::Metadata {
                 mod_name: "test_mod".to_string(),
-                version: "0.1.0".to_string(),
+                version: semver::Version::new(0, 1, 0),
                 engine: "rhai".to_string(),
                 game_version: "1.0.0".to_string(),
                 author_name: "test_author".to_string(),
                 short_desc: Some("this is a test".to_string()),
-                dependencies: vec!["other_test".to_string(), "yet_another_test".to_string()],
+                dependencies: BTreeMap::from([
+                    (
+                        "other_test".to_string(),
+                        semver::VersionReq {
+                            comparators: vec![semver::Comparator {
+                                op: semver::Op::Exact,
+                                major: 1,
+                                minor: Some(0),
+                                patch: None,
+                                pre: semver::Prerelease::EMPTY
+                            }]
+                        }
+                    ),
+                    (
+                        "yet_another_test".to_string(),
+                        semver::VersionReq {
+                            comparators: vec![semver::Comparator {
+                                op: semver::Op::Greater,
+                                major: 0,
+                                minor: Some(2),
+                                patch: None,
+                                pre: semver::Prerelease::EMPTY
+                            }]
+                        }
+                    )
+                ]),
             }
         }
     )

@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use serde::{Deserialize, Serialize};
 
 use crate::raw_parser;
@@ -90,16 +92,17 @@ impl<'a> File<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize, Default, Debug, PartialEq)]
-#[serde(deny_unknown_fields, default)]
+#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[serde(deny_unknown_fields)]
 pub struct Metadata {
     pub mod_name: String,
-    pub version: String,
+    pub version: semver::Version,
     pub engine: String,
     pub game_version: String,
     pub author_name: String,
     pub short_desc: Option<String>,
-    pub dependencies: Vec<String>,
+    #[serde(default)]
+    pub dependencies: BTreeMap<String, semver::VersionReq>,
 }
 
 #[derive(Debug, PartialEq)]
