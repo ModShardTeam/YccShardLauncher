@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, btree_map::Entry};
 
-use serde::{Deserialize, Deserializer, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, de::Error};
 
 use crate::raw_parser;
 
@@ -111,12 +111,34 @@ impl<'a> File<'a> {
     }
 }
 
-fn lowercase_deser<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+fn is_valid_reader_char(b: u8) -> bool {
+    matches!(b, b'-' | b'_' | b'a'..=b'z' | b'0'..=b'9')
+}
+
+fn entry_point_deser<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
 where
     D: Deserializer<'de>,
 {
     let o: Option<String> = Option::deserialize(deserializer)?;
-    Ok(o.map(|s| s.to_lowercase()))
+
+    match o {
+        Some(s) => {
+            let lower_s = s.to_ascii_lowercase();
+            if lower_s.is_empty() {
+                return Err(D::Error::custom("empty entry point"));
+            }
+            if let Some(c) = lower_s
+                .chars()
+                .find(|&c| !(c.is_ascii() && is_valid_reader_char(c as u8)))
+            {
+                return Err(D::Error::custom(format!(
+                    "Invalid character {c:?} found in entry_name"
+                )));
+            }
+            Ok(Some(lower_s))
+        }
+        None => Ok(None),
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
@@ -125,7 +147,7 @@ pub struct Metadata {
     pub mod_name: String,
     pub version: semver::Version,
     pub engine: String,
-    #[serde(default, deserialize_with = "lowercase_deser")]
+    #[serde(default, deserialize_with = "entry_point_deser")]
     pub entry_point: Option<String>,
     pub game_version: String,
     pub author_name: String,
@@ -134,10 +156,22 @@ pub struct Metadata {
     pub dependencies: BTreeMap<String, semver::VersionReq>,
 }
 
+impl Metadata {
+    pub fn entry(&self) -> &str {
+        self.entry_point.as_deref().unwrap_or("mod")
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Package {
     pub meta: Metadata,
     pub rhai_scripts: BTreeMap<String, String>,
+}
+
+impl Package {
+    pub fn entry(&self) -> &str {
+        self.meta.entry()
+    }
 }
 
 fn rhai_decoder(payload: &[u8]) -> Result<(String, String), PackageRejection> {
@@ -156,7 +190,7 @@ fn rhai_decoder(payload: &[u8]) -> Result<(String, String), PackageRejection> {
     let name: String = name_bytes
         .iter()
         .map(|&b| {
-            if matches!(b, b'-' | b'_' | b'a'..=b'z' | b'0'..=b'9') {
+            if is_valid_reader_char(b) {
                 Ok(b as char)
             } else {
                 Err(PackageRejection::RhaiInvalidByteName {
@@ -221,7 +255,7 @@ pub fn process_package<'a>(file: File<'a>) -> Result<Package, PackageRejection> 
         }
     }
 
-    let expected_entry_point = meta.entry_point.as_deref().unwrap_or("mod");
+    let expected_entry_point = meta.entry();
     if !rhai_scripts.contains_key(expected_entry_point) {
         return Err(PackageRejection::NoEntryPoint {
             expected: expected_entry_point.to_string(),

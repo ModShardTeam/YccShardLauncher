@@ -310,7 +310,7 @@ fn process_reserved_device_rhai_name_package() {
 #[test]
 fn process_invalid_char_rhai_name_package() {
     let meta_payload = common::dummy_metadata("mod");
-    let rhai_payload = common::dummy_rhai_payload(b"Y;U");
+    let rhai_payload = common::dummy_rhai_payload(b"y;u");
     let file = process_data::File {
         header: process_data::FileHeader {
             format_version: 1,
@@ -332,10 +332,99 @@ fn process_invalid_char_rhai_name_package() {
     assert_eq!(
         rej,
         process_data::PackageRejection::RhaiInvalidByteName {
-            name: [89, 59, 85].to_vec(),
+            name: b"y;u".to_vec(),
+            reason: "Invalid character ';' (0x3b) found in name".to_string()
+        }
+    )
+}
+
+#[test]
+fn process_uppercase_char_rhai_name_package() {
+    let meta_payload = common::dummy_metadata("mod");
+    let rhai_payload = common::dummy_rhai_payload(b"YUU");
+    let file = process_data::File {
+        header: process_data::FileHeader {
+            format_version: 1,
+            flags: 0,
+        },
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: meta_payload.as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &rhai_payload,
+            },
+        ],
+    };
+
+    let rej = process_data::process_package(file).unwrap_err();
+    assert_eq!(
+        rej,
+        process_data::PackageRejection::RhaiInvalidByteName {
+            name: b"YUU".to_vec(),
             reason: "Invalid character 'Y' (0x59) found in name".to_string()
         }
     )
+}
+
+#[test]
+fn process_empty_entry_name_package() {
+    let meta_payload = common::dummy_metadata("");
+    let rhai_payload = common::dummy_rhai_payload(b"mod");
+    let file = process_data::File {
+        header: process_data::FileHeader {
+            format_version: 1,
+            flags: 0,
+        },
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: meta_payload.as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &rhai_payload,
+            },
+        ],
+    };
+
+    let rej = process_data::process_package(file).unwrap_err();
+
+    let process_data::PackageRejection::InvalidMetadata(e) = rej else {
+        panic!("expected InvalidMetadata, got {rej:?}");
+    };
+    assert_eq!(e.message(), "empty entry point")
+}
+
+#[test]
+fn process_invalid_entry_name_package() {
+    let meta_payload = common::dummy_metadata("moš");
+    let rhai_payload = common::dummy_rhai_payload(b"mod");
+    let file = process_data::File {
+        header: process_data::FileHeader {
+            format_version: 1,
+            flags: 0,
+        },
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: meta_payload.as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &rhai_payload,
+            },
+        ],
+    };
+
+    let rej = process_data::process_package(file).unwrap_err();
+
+    let process_data::PackageRejection::InvalidMetadata(e) = rej else {
+        panic!("expected InvalidMetadata, got {rej:?}");
+    };
+    assert_eq!(e.message(), "Invalid character 'š' found in entry_name")
 }
 
 #[test]
