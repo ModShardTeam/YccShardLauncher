@@ -1699,6 +1699,7 @@ dependencies = [
 name = "ysl-mod"
 version = "0.1.0"
 dependencies = [
+ "rhai",
  "semver",
  "serde",
  "toml",

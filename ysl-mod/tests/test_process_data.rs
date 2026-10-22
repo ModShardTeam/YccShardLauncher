@@ -97,6 +97,7 @@ fn process_valid_meta_package() {
                 mod_name: "test_mod".to_string(),
                 version: semver::Version::new(0, 1, 0),
                 engine: "rhai".to_string(),
+                entry_point: Some("custom_entry_point".to_string()),
                 game_version: "1.0.0".to_string(),
                 author_name: "test_author".to_string(),
                 short_desc: Some("this is a test".to_string()),
@@ -176,8 +177,8 @@ fn convert_two_metas_package() {
 fn process_valid_rhai_package() {
     let rhai_script = "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }";
     let mut rhai_payload = vec![];
-    rhai_payload.push(3u8);
-    rhai_payload.extend_from_slice(b"ABC");
+    rhai_payload.push(5u8);
+    rhai_payload.extend_from_slice(b"Ab_5c");
     rhai_payload.extend_from_slice(rhai_script.as_bytes());
     let file = process_data::File {
         header: process_data::FileHeader {
@@ -204,6 +205,7 @@ fn process_valid_rhai_package() {
                 mod_name: "test_mod".to_string(),
                 version: semver::Version::new(0, 1, 0),
                 engine: "rhai".to_string(),
+                entry_point: Some("custom_entry_point".to_string()),
                 game_version: "1.0.0".to_string(),
                 author_name: "test_author".to_string(),
                 short_desc: Some("this is a test".to_string()),
@@ -237,11 +239,147 @@ fn process_valid_rhai_package() {
             rhai_scripts: BTreeMap::from(
                 [
                     (
-                        "ABC".to_string(),
+                        "Ab_5c".to_string(),
                         "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }".to_string()
                     )
                 ]
             ),
+        }
+    )
+}
+
+#[test]
+fn process_reserved_device_rhai_name_package() {
+    let rhai_script = "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }";
+    let mut rhai_payload = vec![];
+    rhai_payload.push(3u8);
+    rhai_payload.extend_from_slice(b"CON");
+    rhai_payload.extend_from_slice(rhai_script.as_bytes());
+    let file = process_data::File {
+        header: process_data::FileHeader {
+            format_version: 1,
+            flags: 0,
+        },
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: common::dummy_metadata().as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &rhai_payload,
+            },
+        ],
+    };
+
+    let rej = process_data::process_package(file).unwrap_err();
+    assert_eq!(
+        rej,
+        process_data::PackageRejection::RhaiInvalidName {
+            name: "CON".to_string(),
+            reason: "Reserved device name".to_string()
+        }
+    )
+}
+
+#[test]
+fn process_reserved_device_mixedcase_rhai_name_package() {
+    let rhai_script = "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }";
+    let mut rhai_payload = vec![];
+    rhai_payload.push(4u8);
+    rhai_payload.extend_from_slice(b"Lpt5");
+    rhai_payload.extend_from_slice(rhai_script.as_bytes());
+    let file = process_data::File {
+        header: process_data::FileHeader {
+            format_version: 1,
+            flags: 0,
+        },
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: common::dummy_metadata().as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &rhai_payload,
+            },
+        ],
+    };
+
+    let rej = process_data::process_package(file).unwrap_err();
+    assert_eq!(
+        rej,
+        process_data::PackageRejection::RhaiInvalidName {
+            name: "Lpt5".to_string(),
+            reason: "Reserved device name".to_string()
+        }
+    )
+}
+
+#[test]
+fn process_invalid_char_rhai_name_package() {
+    let rhai_script = "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }";
+    let mut rhai_payload = vec![];
+    rhai_payload.push(3u8);
+    rhai_payload.extend_from_slice(b"Y;U");
+    rhai_payload.extend_from_slice(rhai_script.as_bytes());
+    let file = process_data::File {
+        header: process_data::FileHeader {
+            format_version: 1,
+            flags: 0,
+        },
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: common::dummy_metadata().as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &rhai_payload,
+            },
+        ],
+    };
+
+    let rej = process_data::process_package(file).unwrap_err();
+    assert_eq!(
+        rej,
+        process_data::PackageRejection::RhaiInvalidByteName {
+            name: [89, 59, 85].to_vec(),
+            reason: "Invalid character ';' (0x3b) found in name".to_string()
+        }
+    )
+}
+
+#[test]
+fn process_invalid_rhai_script_package() {
+    let rhai_script = "} ; afertg";
+    let mut rhai_payload = vec![];
+    rhai_payload.push(3u8);
+    rhai_payload.extend_from_slice(b"abc");
+    rhai_payload.extend_from_slice(rhai_script.as_bytes());
+    let file = process_data::File {
+        header: process_data::FileHeader {
+            format_version: 1,
+            flags: 0,
+        },
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: common::dummy_metadata().as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &rhai_payload,
+            },
+        ],
+    };
+
+    let rej = process_data::process_package(file).unwrap_err();
+    assert_eq!(
+        rej,
+        process_data::PackageRejection::RhaiInvalidScript {
+            name: "abc".to_string(),
+            reason: "Unexpected '}' (line 1, position 1)".to_string()
         }
     )
 }

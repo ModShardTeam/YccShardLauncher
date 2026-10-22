@@ -19,7 +19,7 @@ pub fn create_header(magic: &[u8; 4], format_version: u16, flags: u16, len: u32)
     array
 }
 
-pub fn sample_body() -> Vec<u8> {
+pub fn sample_raw_body() -> Vec<u8> {
     let mut body: Vec<u8> = vec![];
     body.extend_from_slice(&create_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
     body.extend_from_slice(&create_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
@@ -34,6 +34,7 @@ pub fn dummy_metadata() -> &'static str {
 mod_name = "test_mod"
 version = "0.1.0"
 engine = "rhai"
+entry_point = "custom_entry_point"
 game_version = "1.0.0"
 author_name = "test_author"
 short_desc = "this is a test"

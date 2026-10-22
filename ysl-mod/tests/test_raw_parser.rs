@@ -164,7 +164,7 @@ fn parse_iterator_stop() {
 
 #[test]
 fn parse_valid_file() {
-    let chunks: Vec<u8> = common::sample_body();
+    let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_header(b"YFF\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -206,7 +206,7 @@ fn parse_valid_file() {
 
 #[test]
 fn parse_bad_magic_file() {
-    let chunks: Vec<u8> = common::sample_body();
+    let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_header(b"BAD\0", 1, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -216,7 +216,7 @@ fn parse_bad_magic_file() {
 
 #[test]
 fn parse_null_version_file() {
-    let chunks: Vec<u8> = common::sample_body();
+    let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_header(b"YFF\0", 0, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -229,7 +229,7 @@ fn parse_null_version_file() {
 
 #[test]
 fn parse_version_from_the_future_file() {
-    let chunks: Vec<u8> = common::sample_body();
+    let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_header(b"YFF\0", u16::MAX, 0, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -242,7 +242,7 @@ fn parse_version_from_the_future_file() {
 
 #[test]
 fn parse_unknown_low_byte_flag_file() {
-    let chunks: Vec<u8> = common::sample_body();
+    let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_header(b"YFF\0", 1, 0b0000_0000_1100_0000, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -257,7 +257,7 @@ fn parse_unknown_low_byte_flag_file() {
 
 #[test]
 fn parse_unknown_high_byte_flag_file() {
-    let chunks: Vec<u8> = common::sample_body();
+    let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_header(b"YFF\0", 1, 0b0000_1101_0000_0000, chunks.len() as u32);
     file.extend_from_slice(&chunks);
 
@@ -272,7 +272,7 @@ fn parse_unknown_high_byte_flag_file() {
 
 #[test]
 fn parse_too_long_len_file() {
-    let chunks: Vec<u8> = common::sample_body();
+    let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_header(b"YFF\0", 1, 0, chunks.len() as u32 + 10);
     file.extend_from_slice(&chunks);
 
@@ -288,7 +288,7 @@ fn parse_too_long_len_file() {
 
 #[test]
 fn parse_too_small_len_file() {
-    let chunks: Vec<u8> = common::sample_body();
+    let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_header(b"YFF\0", 1, 0, chunks.len() as u32 - 10);
     file.extend_from_slice(&chunks);
 
