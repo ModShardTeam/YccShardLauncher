@@ -1,6 +1,6 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, btree_map::Entry};
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
 use crate::raw_parser;
 
@@ -27,7 +27,7 @@ pub enum PackageRejection {
     RhaiInvalidByteName { name: Vec<u8>, reason: String },
     RhaiInvalidName { name: String, reason: String },
     RhaiInvalidScript { name: String, reason: String },
-    RhaiDuplicateName { first: String, second: String },
+    RhaiDuplicateName { found: String },
 }
 
 #[non_exhaustive]
@@ -111,12 +111,21 @@ impl<'a> File<'a> {
     }
 }
 
+fn lowercase_deser<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    let o: Option<String> = Option::deserialize(deserializer)?;
+    Ok(o.map(|s| s.to_lowercase()))
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
     pub mod_name: String,
     pub version: semver::Version,
     pub engine: String,
+    #[serde(default, deserialize_with = "lowercase_deser")]
     pub entry_point: Option<String>,
     pub game_version: String,
     pub author_name: String,
@@ -126,15 +135,9 @@ pub struct Metadata {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct Script {
-    pub name: String,
-    pub data: String,
-}
-
-#[derive(Debug, PartialEq)]
 pub struct Package {
     pub meta: Metadata,
-    pub rhai_scripts: BTreeMap<String, Script>,
+    pub rhai_scripts: BTreeMap<String, String>,
 }
 
 fn rhai_decoder(payload: &[u8]) -> Result<(String, String), PackageRejection> {
@@ -153,7 +156,7 @@ fn rhai_decoder(payload: &[u8]) -> Result<(String, String), PackageRejection> {
     let name: String = name_bytes
         .iter()
         .map(|&b| {
-            if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_') {
+            if matches!(b, b'-' | b'_' | b'a'..=b'z' | b'0'..=b'9') {
                 Ok(b as char)
             } else {
                 Err(PackageRejection::RhaiInvalidByteName {
@@ -203,29 +206,23 @@ pub fn process_package<'a>(file: File<'a>) -> Result<Package, PackageRejection> 
         Ok(meta) => meta,
     };
 
-    let mut rhai_scripts: BTreeMap<String, Script> = BTreeMap::new();
-    for r in rhai_filter.map(|c| rhai_decoder(c.payload)) {
-        match r {
-            Ok((name, data)) => {
-                let key = name.to_ascii_uppercase();
-                if rhai_scripts.contains_key(&key) {
-                    return Err(PackageRejection::RhaiDuplicateName {
-                        first: rhai_scripts[&key].name.to_owned(),
-                        second: name,
-                    });
-                }
-                rhai_scripts.insert(key, Script { name, data });
+    let mut rhai_scripts: BTreeMap<String, String> = BTreeMap::new();
+    for c in rhai_filter {
+        let (name, data) = rhai_decoder(c.payload)?;
+        match rhai_scripts.entry(name) {
+            Entry::Vacant(vacant_entry) => {
+                vacant_entry.insert(data);
             }
-            Err(e) => return Err(e),
+            Entry::Occupied(occupied_entry) => {
+                return Err(PackageRejection::RhaiDuplicateName {
+                    found: occupied_entry.key().to_owned(),
+                });
+            }
         }
     }
 
-    let expected_entry_point = match meta.entry_point {
-        Some(ref s) => s,
-        None => "mod",
-    };
-
-    if !rhai_scripts.contains_key(&expected_entry_point.to_ascii_uppercase()) {
+    let expected_entry_point = meta.entry_point.as_deref().unwrap_or("mod");
+    if !rhai_scripts.contains_key(expected_entry_point) {
         return Err(PackageRejection::NoEntryPoint {
             expected: expected_entry_point.to_string(),
         });

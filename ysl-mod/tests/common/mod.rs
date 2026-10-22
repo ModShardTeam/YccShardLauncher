@@ -29,12 +29,13 @@ pub fn sample_raw_body() -> Vec<u8> {
     body
 }
 
-pub fn dummy_metadata() -> &'static str {
-    r#"
+pub fn dummy_metadata(entry: &str) -> String {
+    format!(
+        r#"
 mod_name = "test_mod"
 version = "0.1.0"
 engine = "rhai"
-entry_point = "Ab_5c"
+entry_point = "{}"
 game_version = "1.0.0"
 author_name = "test_author"
 short_desc = "this is a test"
@@ -43,7 +44,9 @@ short_desc = "this is a test"
 other_test = "=1.0"
 yet_another_test = ">0.2"
 
-"#
+"#,
+        entry
+    )
 }
 
 pub fn dummy_no_entry_metadata() -> &'static str {
