@@ -34,7 +34,7 @@ pub fn dummy_metadata() -> &'static str {
 mod_name = "test_mod"
 version = "0.1.0"
 engine = "rhai"
-entry_point = "custom_entry_point"
+entry_point = "Ab_5c"
 game_version = "1.0.0"
 author_name = "test_author"
 short_desc = "this is a test"
@@ -44,4 +44,28 @@ other_test = "=1.0"
 yet_another_test = ">0.2"
 
 "#
+}
+
+pub fn dummy_no_entry_metadata() -> &'static str {
+    r#"
+mod_name = "test_mod"
+version = "0.1.0"
+engine = "rhai"
+game_version = "1.0.0"
+author_name = "test_author"
+short_desc = "this is a test"
+
+[dependencies]
+other_test = "=1.0"
+yet_another_test = ">0.2"
+
+"#
+}
+
+pub fn dummy_rhai_payload(name: &[u8]) -> Vec<u8> {
+    let mut payload: Vec<u8> = vec![];
+    payload.push(name.len() as u8);
+    payload.extend_from_slice(name);
+    payload.extend_from_slice("fn load(mod) { }".as_bytes());
+    payload
 }

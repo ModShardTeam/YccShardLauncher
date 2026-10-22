@@ -83,10 +83,16 @@ fn process_valid_meta_package() {
             format_version: 1,
             flags: 0,
         },
-        chunks: vec![process_data::Chunk {
-            four_cc: process_data::FourCC::Metadata,
-            payload: common::dummy_metadata().as_bytes(),
-        }],
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: common::dummy_no_entry_metadata().as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &[0x03, b'm', b'o', b'd'],
+            },
+        ],
     };
 
     let package = process_data::process_package(file).expect("valid operation");
@@ -97,7 +103,7 @@ fn process_valid_meta_package() {
                 mod_name: "test_mod".to_string(),
                 version: semver::Version::new(0, 1, 0),
                 engine: "rhai".to_string(),
-                entry_point: Some("custom_entry_point".to_string()),
+                entry_point: None,
                 game_version: "1.0.0".to_string(),
                 author_name: "test_author".to_string(),
                 short_desc: Some("this is a test".to_string()),
@@ -128,7 +134,13 @@ fn process_valid_meta_package() {
                     )
                 ]),
             },
-            rhai_scripts: BTreeMap::new(),
+            rhai_scripts: BTreeMap::from([(
+                "MOD".to_string(),
+                process_data::Script {
+                    name: "mod".to_string(),
+                    data: "".to_string()
+                }
+            )]),
         }
     )
 }
@@ -205,7 +217,7 @@ fn process_valid_rhai_package() {
                 mod_name: "test_mod".to_string(),
                 version: semver::Version::new(0, 1, 0),
                 engine: "rhai".to_string(),
-                entry_point: Some("custom_entry_point".to_string()),
+                entry_point: Some("Ab_5c".to_string()),
                 game_version: "1.0.0".to_string(),
                 author_name: "test_author".to_string(),
                 short_desc: Some("this is a test".to_string()),
@@ -236,14 +248,13 @@ fn process_valid_rhai_package() {
                     )
                 ]),
             },
-            rhai_scripts: BTreeMap::from(
-                [
-                    (
-                        "Ab_5c".to_string(),
-                        "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }".to_string()
-                    )
-                ]
-            ),
+            rhai_scripts: BTreeMap::from([(
+                "AB_5C".to_string(),
+                process_data::Script {
+                    name: "Ab_5c".to_string(),
+                    data: "fn load(mod) { mod.load_script(\"gml_Object_o_player_Step_0\").replace_constant(250.0, 10.0).save(); }".to_string(),
+                }
+            )]),
         }
     )
 }
@@ -351,11 +362,11 @@ fn process_invalid_char_rhai_name_package() {
 }
 
 #[test]
-fn process_invalid_rhai_script_package() {
-    let rhai_script = "} ; afertg";
+fn process_missing_entry_name_package() {
+    let rhai_script = "fn load(mod) { }";
     let mut rhai_payload = vec![];
     rhai_payload.push(3u8);
-    rhai_payload.extend_from_slice(b"abc");
+    rhai_payload.extend_from_slice(b"mod");
     rhai_payload.extend_from_slice(rhai_script.as_bytes());
     let file = process_data::File {
         header: process_data::FileHeader {
@@ -377,9 +388,43 @@ fn process_invalid_rhai_script_package() {
     let rej = process_data::process_package(file).unwrap_err();
     assert_eq!(
         rej,
-        process_data::PackageRejection::RhaiInvalidScript {
-            name: "abc".to_string(),
-            reason: "Unexpected '}' (line 1, position 1)".to_string()
+        process_data::PackageRejection::NoEntryPoint {
+            expected: "Ab_5c".to_string()
+        }
+    )
+}
+
+#[test]
+fn process_duplicate_names_rhai_script_package() {
+    let f_binding = common::dummy_rhai_payload(b"mod");
+    let s_binding = common::dummy_rhai_payload(b"MoD");
+    let file = process_data::File {
+        header: process_data::FileHeader {
+            format_version: 1,
+            flags: 0,
+        },
+        chunks: vec![
+            process_data::Chunk {
+                four_cc: process_data::FourCC::Metadata,
+                payload: common::dummy_no_entry_metadata().as_bytes(),
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &f_binding,
+            },
+            process_data::Chunk {
+                four_cc: process_data::FourCC::RhaiScript,
+                payload: &s_binding,
+            },
+        ],
+    };
+
+    let rej = process_data::process_package(file).unwrap_err();
+    assert_eq!(
+        rej,
+        process_data::PackageRejection::RhaiDuplicateName {
+            first: "mod".to_string(),
+            second: "MoD".to_string()
         }
     )
 }

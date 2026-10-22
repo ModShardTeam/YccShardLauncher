@@ -1,22 +1,13 @@
 use std::collections::BTreeMap;
 
-use rhai::Engine;
 use serde::{Deserialize, Serialize};
 
 use crate::raw_parser;
 
-const CAPITALA: u8 = b'A';
-const CAPITALZ: u8 = b'Z';
-const LOWERA: u8 = b'a';
-const LOWERZ: u8 = b'z';
-const DIGIT0: u8 = b'0';
-const DIGIT9: u8 = b'9';
-const HYPHEN: u8 = b'-';
-const UNDERSCORE: u8 = b'_';
-const RESERVED_WINDOWS_DEVICE_NAME: [&str; 28] = [
-    "CON", "PRN", "AUX", "NUL", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7", "COM8",
-    "COM9", "COM¹", "COM²", "COM³", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6", "LPT7", "LPT8",
-    "LPT9", "LPT¹", "LPT²", "LPT³",
+const RESERVED_WINDOWS_DEVICE_NAME: [&str; 30] = [
+    "CON", "PRN", "AUX", "NUL", "COM0", "COM1", "COM2", "COM3", "COM4", "COM5", "COM6", "COM7",
+    "COM8", "COM9", "COM¹", "COM²", "COM³", "LPT0", "LPT1", "LPT2", "LPT3", "LPT4", "LPT5", "LPT6",
+    "LPT7", "LPT8", "LPT9", "LPT¹", "LPT²", "LPT³",
 ];
 
 #[non_exhaustive]
@@ -24,17 +15,19 @@ const RESERVED_WINDOWS_DEVICE_NAME: [&str; 28] = [
 pub enum PackageRejection {
     NoMetaChunk,
     MultipleMetaChunkFound,
-    NoEntryPoint,
+    NoEntryPoint { expected: String },
 
     // metadata related rejections
     InvalidMetadata(toml::de::Error),
 
     // rhai related rejections
     RhaiNullPayload,
+    RhaiNullName,
     RhaiInvalidNameLen,
     RhaiInvalidByteName { name: Vec<u8>, reason: String },
     RhaiInvalidName { name: String, reason: String },
     RhaiInvalidScript { name: String, reason: String },
+    RhaiDuplicateName { first: String, second: String },
 }
 
 #[non_exhaustive]
@@ -133,9 +126,15 @@ pub struct Metadata {
 }
 
 #[derive(Debug, PartialEq)]
+pub struct Script {
+    pub name: String,
+    pub data: String,
+}
+
+#[derive(Debug, PartialEq)]
 pub struct Package {
     pub meta: Metadata,
-    pub rhai_scripts: BTreeMap<String, String>,
+    pub rhai_scripts: BTreeMap<String, Script>,
 }
 
 fn rhai_decoder(payload: &[u8]) -> Result<(String, String), PackageRejection> {
@@ -143,28 +142,27 @@ fn rhai_decoder(payload: &[u8]) -> Result<(String, String), PackageRejection> {
         return Err(PackageRejection::RhaiNullPayload);
     };
 
+    if name_len == 0 {
+        return Err(PackageRejection::RhaiNullName);
+    }
+
     let Some((name_bytes, rest)) = rest.split_at_checked(name_len as usize) else {
         return Err(PackageRejection::RhaiInvalidNameLen);
     };
 
-    if let Some(v) = name_bytes
+    let name: String = name_bytes
         .iter()
-        .filter_map(|s| match s {
-            CAPITALA..=CAPITALZ | LOWERA..=LOWERZ | DIGIT0..=DIGIT9 | &HYPHEN | &UNDERSCORE => None,
-            v => Some(v),
+        .map(|&b| {
+            if b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_') {
+                Ok(b as char)
+            } else {
+                Err(PackageRejection::RhaiInvalidByteName {
+                    name: name_bytes.to_vec(),
+                    reason: format!("Invalid character {:?} ({b:#x}) found in name", b as char),
+                })
+            }
         })
-        .next()
-    {
-        return Err(PackageRejection::RhaiInvalidByteName {
-            name: name_bytes.to_vec(),
-            reason: format!("Invalid character {:?} ({v:#x}) found in name", *v as char),
-        });
-    }
-
-    let name = str::from_utf8(name_bytes).map_err(|e| PackageRejection::RhaiInvalidByteName {
-        name: name_bytes.to_vec(),
-        reason: format!("{e:#}"),
-    })?;
+        .collect::<Result<_, PackageRejection>>()?;
 
     let uppercase = &name.to_ascii_uppercase() as &str;
     if RESERVED_WINDOWS_DEVICE_NAME.contains(&uppercase) {
@@ -180,13 +178,6 @@ fn rhai_decoder(payload: &[u8]) -> Result<(String, String), PackageRejection> {
             reason: format!("{e:#}"),
         })?;
 
-    let engine = Engine::new();
-    engine
-        .compile(&data)
-        .map_err(|e| PackageRejection::RhaiInvalidScript {
-            name: name.to_string(),
-            reason: format!("{e:#}"),
-        })?;
     Ok((name.to_string(), data))
 }
 
@@ -212,12 +203,32 @@ pub fn process_package<'a>(file: File<'a>) -> Result<Package, PackageRejection> 
         Ok(meta) => meta,
     };
 
-    let rhai_scripts: BTreeMap<String, String> = rhai_filter
-        .map(|c| rhai_decoder(c.payload))
-        .collect::<Result<_, _>>()?;
+    let mut rhai_scripts: BTreeMap<String, Script> = BTreeMap::new();
+    for r in rhai_filter.map(|c| rhai_decoder(c.payload)) {
+        match r {
+            Ok((name, data)) => {
+                let key = name.to_ascii_uppercase();
+                if rhai_scripts.contains_key(&key) {
+                    return Err(PackageRejection::RhaiDuplicateName {
+                        first: rhai_scripts[&key].name.to_owned(),
+                        second: name,
+                    });
+                }
+                rhai_scripts.insert(key, Script { name, data });
+            }
+            Err(e) => return Err(e),
+        }
+    }
 
-    if !rhai_scripts.iter().any(|(n, _)| n == "mod") && meta.entry_point.is_none() {
-        return Err(PackageRejection::NoEntryPoint);
+    let expected_entry_point = match meta.entry_point {
+        Some(ref s) => s,
+        None => "mod",
+    };
+
+    if !rhai_scripts.contains_key(&expected_entry_point.to_ascii_uppercase()) {
+        return Err(PackageRejection::NoEntryPoint {
+            expected: expected_entry_point.to_string(),
+        });
     }
 
     Ok(Package { meta, rhai_scripts })
