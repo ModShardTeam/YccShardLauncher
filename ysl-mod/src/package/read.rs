@@ -26,7 +26,7 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Pack
     Ok((name, data))
 }
 
-pub fn read<'a>(file: raw::File<'a>) -> Result<package::Package, package::PackageRejection> {
+pub fn read<'a>(file: raw::RFile<'a>) -> Result<package::Package, package::PackageRejection> {
     let mut metadata_filter = file.chunks.iter().filter(|&c| {
         c.four_cc
             == <package::FourCC as std::convert::Into<[u8; 4]>>::into(package::FourCC::Metadata)
@@ -44,7 +44,7 @@ pub fn read<'a>(file: raw::File<'a>) -> Result<package::Package, package::Packag
         return Err(package::PackageRejection::MultipleMetaChunkFound);
     }
     let meta: package::Metadata = match toml::from_slice(meta_chunk.payload) {
-        Err(e) => return Err(package::PackageRejection::InvalidMetadata(e)),
+        Err(e) => return Err(package::PackageRejection::InvalidDeserMetadata(e)),
         Ok(meta) => meta,
     };
 

@@ -1,5 +1,6 @@
 pub mod name;
 pub mod read;
+pub mod write;
 
 use std::collections::BTreeMap;
 
@@ -13,7 +14,8 @@ pub enum PackageRejection {
     NoEntryPoint { expected: String },
 
     // metadata related rejections
-    InvalidMetadata(toml::de::Error),
+    InvalidDeserMetadata(toml::de::Error),
+    InvalidSerMetadata(toml::ser::Error),
 
     // rhai related rejections
     RhaiNullPayload,
@@ -85,7 +87,7 @@ where
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
     pub mod_name: String,
@@ -106,7 +108,7 @@ impl Metadata {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 pub struct Package {
     pub meta: Metadata,
     pub rhai_scripts: BTreeMap<String, String>,

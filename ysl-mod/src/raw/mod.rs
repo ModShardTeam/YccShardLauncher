@@ -1,4 +1,5 @@
 pub mod read;
+pub mod write;
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -36,14 +37,46 @@ const MAXIMUM_FILE_SIZE: usize = 1_024 * 1_024; // 1 MiB
 const MAXIMUM_PAYLOAD_SIZE: usize = 10 * 1_024; // 10 kiB
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct Chunk<'a> {
+pub struct RChunk<'a> {
     pub four_cc: [u8; 4],
     pub payload: &'a [u8],
 }
 
+#[derive(Debug, PartialEq, Clone)]
+pub struct WChunk {
+    pub four_cc: [u8; 4],
+    pub payload: Vec<u8>,
+}
+
+impl<'a> From<&'a WChunk> for RChunk<'a> {
+    fn from(value: &'a WChunk) -> Self {
+        RChunk {
+            four_cc: value.four_cc,
+            payload: &value.payload,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
-pub struct File<'a> {
+pub struct RFile<'a> {
     pub format_version: u16,
     pub flags: u16,
-    pub chunks: Vec<Chunk<'a>>,
+    pub chunks: Vec<RChunk<'a>>,
+}
+
+#[derive(Debug, PartialEq)]
+pub struct WFile {
+    pub format_version: u16,
+    pub flags: u16,
+    pub chunks: Vec<WChunk>,
+}
+
+impl<'a> From<&'a WFile> for RFile<'a> {
+    fn from(value: &'a WFile) -> Self {
+        RFile {
+            format_version: value.format_version,
+            flags: value.flags,
+            chunks: value.chunks.iter().map(|c| c.into()).collect::<Vec<_>>(),
+        }
+    }
 }

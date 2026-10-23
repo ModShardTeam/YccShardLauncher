@@ -55,9 +55,9 @@ impl<'a> From<&'a [u8]> for ChunkIter<'a> {
 }
 
 impl<'a> Iterator for ChunkIter<'a> {
-    type Item = Result<raw::Chunk<'a>, raw::ChunkRejection>;
+    type Item = Result<raw::RChunk<'a>, raw::ChunkRejection>;
 
-    fn next(&mut self) -> Option<Result<raw::Chunk<'a>, raw::ChunkRejection>> {
+    fn next(&mut self) -> Option<Result<raw::RChunk<'a>, raw::ChunkRejection>> {
         let val = self.state;
         if val.is_empty() {
             return None;
@@ -113,7 +113,9 @@ fn parse_header(bytes: &[u8]) -> Result<(Header, &[u8]), raw::RawRejection> {
     Ok((header, rest))
 }
 
-pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(raw::Chunk<'a>, &'a [u8]), raw::ChunkRejection> {
+pub fn parse_chunk<'a>(
+    bytes: &'a [u8],
+) -> Result<(raw::RChunk<'a>, &'a [u8]), raw::ChunkRejection> {
     let Some((chunk_header, rest)) = ChunkHeader::read(bytes) else {
         return Err(raw::ChunkRejection::NotEnoughDataHeader {
             needed: size_of::<ChunkHeader>(),
@@ -135,7 +137,7 @@ pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(raw::Chunk<'a>, &'a [u8]), ra
     }
 
     Ok((
-        raw::Chunk {
+        raw::RChunk {
             four_cc: chunk_header.four_cc,
             payload,
         },
@@ -143,7 +145,7 @@ pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(raw::Chunk<'a>, &'a [u8]), ra
     ))
 }
 
-pub fn parse_file<'a>(bytes: &'a [u8]) -> Result<raw::File<'a>, raw::RawRejection> {
+pub fn parse_file<'a>(bytes: &'a [u8]) -> Result<raw::RFile<'a>, raw::RawRejection> {
     if bytes.len() >= raw::MAXIMUM_FILE_SIZE {
         return Err(raw::RawRejection::TooBigFile {
             declared: bytes.len(),
@@ -156,7 +158,7 @@ pub fn parse_file<'a>(bytes: &'a [u8]) -> Result<raw::File<'a>, raw::RawRejectio
 
     let iter = ChunkIter::from(raw_chunks);
 
-    Ok(raw::File {
+    Ok(raw::RFile {
         format_version,
         flags,
         chunks: iter.collect::<Result<_, _>>()?,

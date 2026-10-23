@@ -31,8 +31,7 @@ pub fn sample_raw_body() -> Vec<u8> {
 
 pub fn dummy_metadata(entry: &str) -> String {
     format!(
-        r#"
-mod_name = "test_mod"
+        r#"mod_name = "test_mod"
 version = "0.1.0"
 engine = "rhai"
 entry_point = "{}"
@@ -43,7 +42,6 @@ short_desc = "this is a test"
 [dependencies]
 other_test = "=1.0"
 yet_another_test = ">0.2"
-
 "#,
         entry
     )
