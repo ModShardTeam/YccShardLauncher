@@ -27,18 +27,15 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Pack
 }
 
 pub fn read<'a>(file: raw::File<'a>) -> Result<package::Package, package::PackageRejection> {
-    let chunks = file
-        .chunks
-        .iter()
-        .filter_map(|&rc| package::Chunk::from_raw(rc))
-        .collect::<Vec<_>>();
-    let mut metadata_filter = chunks
-        .iter()
-        .filter(|&c| c.four_cc == package::FourCC::Metadata);
+    let mut metadata_filter = file.chunks.iter().filter(|&c| {
+        c.four_cc
+            == <package::FourCC as std::convert::Into<[u8; 4]>>::into(package::FourCC::Metadata)
+    });
 
-    let rhai_filter = chunks
-        .iter()
-        .filter(|&c| c.four_cc == package::FourCC::RhaiScript);
+    let rhai_filter = file.chunks.iter().filter(|&c| {
+        c.four_cc
+            == <package::FourCC as std::convert::Into<[u8; 4]>>::into(package::FourCC::RhaiScript)
+    });
 
     let Some(meta_chunk) = metadata_filter.next() else {
         return Err(package::PackageRejection::NoMetaChunk);

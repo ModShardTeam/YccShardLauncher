@@ -50,6 +50,17 @@ impl TryFrom<[u8; 4]> for FourCC {
     }
 }
 
+impl From<FourCC> for [u8; 4] {
+    fn from(value: FourCC) -> Self {
+        *match value {
+            FourCC::LuaScript => b"LUA\0",
+            FourCC::RhaiScript => b"RHAI",
+            FourCC::Metadata => b"META",
+            FourCC::Png => b"PNG\0",
+        }
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Chunk<'a> {
     pub four_cc: FourCC,
