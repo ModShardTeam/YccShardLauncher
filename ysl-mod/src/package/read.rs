@@ -48,9 +48,6 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Pack
 }
 
 pub fn read<'a>(file: raw::File<'a>) -> Result<package::Package, package::PackageRejection> {
-    let _format_version: u16 = u16::from_le_bytes(file.header.format_version);
-    let _flags: u16 = u16::from_le_bytes(file.header.flags);
-
     let chunks = file
         .chunks
         .iter()

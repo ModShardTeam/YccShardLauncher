@@ -106,10 +106,14 @@ pub fn parse_file<'a>(bytes: &'a [u8]) -> Result<raw::File<'a>, raw::RawRejectio
     }
 
     let (raw_header, raw_chunks) = parse_header(bytes)?;
+    let format_version: u16 = u16::from_le_bytes(raw_header.format_version);
+    let flags: u16 = u16::from_le_bytes(raw_header.flags);
+
     let iter = ChunkIter::from(raw_chunks);
 
     Ok(raw::File {
-        header: raw_header,
+        format_version,
+        flags,
         chunks: iter.collect::<Result<_, _>>()?,
     })
 }

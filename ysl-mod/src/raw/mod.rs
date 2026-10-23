@@ -72,6 +72,7 @@ pub struct Chunk<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct File<'a> {
-    pub header: Header,
+    pub format_version: u16,
+    pub flags: u16,
     pub chunks: Vec<Chunk<'a>>,
 }

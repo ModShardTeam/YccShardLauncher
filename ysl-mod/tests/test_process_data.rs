@@ -32,12 +32,8 @@ fn convert_invalid_id_chunk() {
 #[test]
 fn convert_skips_unknown_id() {
     let raw_file = raw::File {
-        header: raw::Header {
-            magic: *b"YFF\0",
-            format_version: [0x01, 0x00],
-            flags: [0x00, 0x00],
-            len: [0x18, 0x00, 0x00, 0x00],
-        },
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -64,7 +60,8 @@ fn convert_skips_unknown_id() {
 #[test]
 fn process_valid_meta_package() {
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -125,7 +122,8 @@ fn process_valid_meta_package() {
 #[test]
 fn convert_no_meta_package() {
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![raw::Chunk {
             four_cc: *common::ID_RHAI,
             payload: &[0xC0, 0xC1, 0xC2, 0xC3],
@@ -141,7 +139,8 @@ fn convert_two_metas_package() {
     let f_binding = common::dummy_metadata("mod");
     let s_binding = common::dummy_metadata("mod");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -163,7 +162,8 @@ fn process_valid_rhai_package() {
     let meta_payload = common::dummy_metadata("ab_5c");
     let rhai_payload = common::dummy_rhai_payload(b"ab_5c");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -229,7 +229,8 @@ fn process_null_rhai_name_package() {
     rhai_payload.push(0x00);
     rhai_payload.extend_from_slice("fn load(mod) { }".as_bytes());
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -251,7 +252,8 @@ fn process_reserved_device_rhai_name_package() {
     let meta_payload = common::dummy_metadata("mod");
     let rhai_payload = common::dummy_rhai_payload(b"con");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -279,7 +281,8 @@ fn process_invalid_char_rhai_name_package() {
     let meta_payload = common::dummy_metadata("mod");
     let rhai_payload = common::dummy_rhai_payload(b"y;u");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -307,7 +310,8 @@ fn process_uppercase_char_rhai_name_package() {
     let meta_payload = common::dummy_metadata("mod");
     let rhai_payload = common::dummy_rhai_payload(b"YUU");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -335,7 +339,8 @@ fn process_empty_entry_name_package() {
     let meta_payload = common::dummy_metadata("");
     let rhai_payload = common::dummy_rhai_payload(b"mod");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -361,7 +366,8 @@ fn process_invalid_entry_name_package() {
     let meta_payload = common::dummy_metadata("moš");
     let rhai_payload = common::dummy_rhai_payload(b"mod");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -387,7 +393,8 @@ fn process_missing_entry_name_package() {
     let meta_payload = common::dummy_metadata("ab_5c");
     let rhai_payload = common::dummy_rhai_payload(b"mod");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -414,7 +421,8 @@ fn process_wrong_case_entry_name_package() {
     let meta_payload = common::dummy_metadata("AB_5C");
     let rhai_payload = common::dummy_rhai_payload(b"ab_5c");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -476,7 +484,8 @@ fn process_wrong_case_entry_name_package() {
 fn process_neither_entry_name_nor_mod_package() {
     let rhai_payload = common::dummy_rhai_payload(b"ab_5c");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,
@@ -503,7 +512,8 @@ fn process_duplicate_names_rhai_script_package() {
     let f_binding = common::dummy_rhai_payload(b"mod");
     let s_binding = common::dummy_rhai_payload(b"mod");
     let file = raw::File {
-        header: common::dummy_file_header(),
+        format_version: 1,
+        flags: 0,
         chunks: vec![
             raw::Chunk {
                 four_cc: *common::ID_META,

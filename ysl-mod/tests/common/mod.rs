@@ -29,15 +29,6 @@ pub fn sample_raw_body() -> Vec<u8> {
     body
 }
 
-pub fn dummy_file_header() -> crate::raw::Header {
-    crate::raw::Header {
-        magic: *b"YFF\0",
-        format_version: [0x01, 0x00],
-        flags: [0x00, 0x00],
-        len: [0x00, 0x00, 0x00, 0x00],
-    }
-}
-
 pub fn dummy_metadata(entry: &str) -> String {
     format!(
         r#"

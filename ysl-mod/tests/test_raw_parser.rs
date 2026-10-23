@@ -171,12 +171,8 @@ fn parse_valid_file() {
     assert_eq!(
         f,
         raw::File {
-            header: raw::Header {
-                magic: *b"YFF\0",
-                len: [0x3B, 0x00, 0x00, 0x00],
-                flags: [0x00, 0x00],
-                format_version: [0x01, 0x00],
-            },
+            format_version: 1,
+            flags: 0,
             chunks: vec![
                 raw::Chunk {
                     four_cc: *common::ID_META,
@@ -308,12 +304,8 @@ fn parse_valid_empty_chunks_file() {
     assert_eq!(
         f,
         raw::File {
-            header: raw::Header {
-                magic: *b"YFF\0",
-                len: [0x00, 0x00, 0x00, 0x00],
-                flags: [0x00, 0x00],
-                format_version: [0x01, 0x00],
-            },
+            format_version: 1,
+            flags: 0,
             chunks: vec![],
         }
     );
@@ -332,12 +324,8 @@ fn parse_unknown_chunk_id_file() {
     assert_eq!(
         f,
         raw::File {
-            header: raw::Header {
-                magic: *b"YFF\0",
-                len: [0x21, 0x00, 0x00, 0x00],
-                flags: [0x00, 0x00],
-                format_version: [0x01, 0x00],
-            },
+            format_version: 1,
+            flags: 0,
             chunks: vec![
                 raw::Chunk {
                     four_cc: *b"META",
