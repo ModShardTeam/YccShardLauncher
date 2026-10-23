@@ -14,37 +14,16 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Pack
     let Some((name_bytes, rest)) = rest.split_at_checked(name_len as usize) else {
         return Err(package::PackageRejection::RhaiInvalidNameLen);
     };
-
-    let name: String = name_bytes
-        .iter()
-        .map(|&b| {
-            if package::name::is_valid_name_byte(b) {
-                Ok(b as char)
-            } else {
-                Err(package::PackageRejection::RhaiInvalidByteName {
-                    name: name_bytes.to_vec(),
-                    reason: format!("Invalid character {:?} ({b:#x}) found in name", b as char),
-                })
-            }
-        })
-        .collect::<Result<_, package::PackageRejection>>()?;
-
-    let uppercase = &name.to_ascii_uppercase() as &str;
-    if package::name::RESERVED_WINDOWS_DEVICE_NAME.contains(&uppercase) {
-        return Err(package::PackageRejection::RhaiInvalidName {
-            name: name.to_string(),
-            reason: "Reserved device name".to_string(),
-        });
-    }
+    let name = package::name::validate_name(name_bytes)?;
 
     let data = String::from_utf8(rest.to_vec()).map_err(|e| {
         package::PackageRejection::RhaiInvalidScript {
-            name: name.to_string(),
+            name: name.to_owned(),
             reason: format!("{e:#}"),
         }
     })?;
 
-    Ok((name.to_string(), data))
+    Ok((name, data))
 }
 
 pub fn read<'a>(file: raw::File<'a>) -> Result<package::Package, package::PackageRejection> {

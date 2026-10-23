@@ -4,20 +4,21 @@ pub mod package;
 pub mod raw;
 
 #[non_exhaustive]
+#[derive(Debug, PartialEq)]
 pub enum Rejection {
-    RawRejection(raw::RawRejection),
-    PackageRejection(package::PackageRejection),
+    Raw(raw::RawRejection),
+    Package(package::PackageRejection),
 }
 
 impl From<raw::RawRejection> for Rejection {
     fn from(value: raw::RawRejection) -> Self {
-        Rejection::RawRejection(value)
+        Rejection::Raw(value)
     }
 }
 
 impl From<package::PackageRejection> for Rejection {
     fn from(value: package::PackageRejection) -> Self {
-        Rejection::PackageRejection(value)
+        Rejection::Package(value)
     }
 }
 
