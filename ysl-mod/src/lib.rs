@@ -1,30 +1,29 @@
 #![forbid(unsafe_code)]
 
-pub mod process_data;
-pub mod raw_parser;
+pub mod package;
+pub mod raw;
 
 #[non_exhaustive]
-pub enum ParserRejection {
-    YffRejection(raw_parser::YffRejection),
-    PackageRejection(process_data::PackageRejection),
+pub enum Rejection {
+    RawRejection(raw::RawRejection),
+    PackageRejection(package::PackageRejection),
 }
 
-impl From<raw_parser::YffRejection> for ParserRejection {
-    fn from(value: raw_parser::YffRejection) -> Self {
-        ParserRejection::YffRejection(value)
+impl From<raw::RawRejection> for Rejection {
+    fn from(value: raw::RawRejection) -> Self {
+        Rejection::RawRejection(value)
     }
 }
 
-impl From<process_data::PackageRejection> for ParserRejection {
-    fn from(value: process_data::PackageRejection) -> Self {
-        ParserRejection::PackageRejection(value)
+impl From<package::PackageRejection> for Rejection {
+    fn from(value: package::PackageRejection) -> Self {
+        Rejection::PackageRejection(value)
     }
 }
 
-pub fn parse(bytes: &[u8]) -> Result<process_data::Package, ParserRejection> {
-    let raw_file = raw_parser::parse_file(bytes)?;
-    let file = process_data::File::from_raw(raw_file);
-    let package = process_data::process_package(file)?;
+pub fn parse(bytes: &[u8]) -> Result<package::Package, Rejection> {
+    let raw_file = raw::read::parse_file(bytes)?;
+    let package = package::read::read(raw_file)?;
 
     Ok(package)
 }
