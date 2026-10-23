@@ -5,8 +5,6 @@ use std::collections::BTreeMap;
 
 use serde::{Deserialize, Deserializer, Serialize, de::Error};
 
-use crate::raw;
-
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum PackageRejection {
