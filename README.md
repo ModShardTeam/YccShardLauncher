@@ -11,7 +11,7 @@ A modlauncher for StoneShard-YCC built in Rust.
 - run `injector.exe`
 
 ```shell
-injector.exe PATH/TO/STONESHARD.exe
+injector.exe --game PATH/TO/STONESHARD.exe
 ```
 
 ## For devs
@@ -20,5 +20,6 @@ injector.exe PATH/TO/STONESHARD.exe
 - Run it:
 
 ```shell
-cargo run -- PATH/TO/STONESHARD.exe
+cargo xtask
+.\target\release\injector.exe --game PATH/TO/STONESHARD.exe
 ```
