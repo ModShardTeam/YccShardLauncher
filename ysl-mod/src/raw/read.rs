@@ -1,4 +1,40 @@
 use crate::raw;
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+struct Header {
+    magic: [u8; 4],
+    format_version: [u8; 2],
+    flags: [u8; 2],
+    len: [u8; 4],
+}
+
+const _: () = assert!(size_of::<Header>() == 12);
+
+impl Header {
+    fn read(bytes: &[u8]) -> Option<(Header, &[u8])> {
+        let (&magic, rest) = bytes.split_first_chunk()?;
+        let (&format_version, rest) = rest.split_first_chunk()?;
+        let (&flags, rest) = rest.split_first_chunk()?;
+        let (&len, rest) = rest.split_first_chunk()?;
+        Some((
+            Header {
+                magic,
+                len,
+                format_version,
+                flags,
+            },
+            rest,
+        ))
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+struct ChunkHeader {
+    four_cc: [u8; 4],
+    len: [u8; 4],
+}
+
 pub struct ChunkIter<'a> {
     state: &'a [u8],
 }
@@ -32,10 +68,10 @@ impl<'a> Iterator for ChunkIter<'a> {
     }
 }
 
-pub fn parse_header(bytes: &[u8]) -> Result<(raw::Header, &[u8]), raw::RawRejection> {
-    let Some((header, rest)) = raw::Header::read(bytes) else {
+fn parse_header(bytes: &[u8]) -> Result<(Header, &[u8]), raw::RawRejection> {
+    let Some((header, rest)) = Header::read(bytes) else {
         return Err(raw::RawRejection::NotEnoughDataHeader {
-            needed: size_of::<raw::Header>(),
+            needed: size_of::<Header>(),
             available: bytes.len(),
         });
     };
@@ -68,21 +104,27 @@ pub fn parse_header(bytes: &[u8]) -> Result<(raw::Header, &[u8]), raw::RawReject
     Ok((header, rest))
 }
 
-pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(raw::Chunk<'a>, &'a [u8]), raw::ChunkRejection> {
+fn parse_chunk_header(bytes: &[u8]) -> Result<(ChunkHeader, &[u8]), raw::ChunkRejection> {
     let Some((&four_cc, rest)) = bytes.split_first_chunk() else {
         return Err(raw::ChunkRejection::NotEnoughDataHeader {
-            needed: 8,
+            needed: size_of::<ChunkHeader>(),
             available: bytes.len(),
         });
     };
-    let Some((&len_bytes, rest)) = rest.split_first_chunk() else {
+    let Some((&len, rest)) = rest.split_first_chunk() else {
         return Err(raw::ChunkRejection::NotEnoughDataHeader {
-            needed: 8,
+            needed: size_of::<ChunkHeader>(),
             available: bytes.len(),
         });
     };
 
-    let len: u32 = u32::from_le_bytes(len_bytes);
+    Ok((ChunkHeader { four_cc, len }, rest))
+}
+
+pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(raw::Chunk<'a>, &'a [u8]), raw::ChunkRejection> {
+    let (chunk_header, rest) = parse_chunk_header(bytes)?;
+
+    let len: u32 = u32::from_le_bytes(chunk_header.len);
     let Some((payload, rest)) = rest.split_at_checked(len as usize) else {
         return Err(raw::ChunkRejection::NotEnoughDataPayload {
             declared: len,
@@ -95,7 +137,13 @@ pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(raw::Chunk<'a>, &'a [u8]), ra
         });
     }
 
-    Ok((raw::Chunk { four_cc, payload }, rest))
+    Ok((
+        raw::Chunk {
+            four_cc: chunk_header.four_cc,
+            payload,
+        },
+        rest,
+    ))
 }
 
 pub fn parse_file<'a>(bytes: &'a [u8]) -> Result<raw::File<'a>, raw::RawRejection> {

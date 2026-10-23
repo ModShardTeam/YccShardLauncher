@@ -35,35 +35,6 @@ const KNOWN_MASK: u16 = 0;
 const MAXIMUM_FILE_SIZE: usize = 1_024 * 1_024; // 1 MiB
 const MAXIMUM_PAYLOAD_SIZE: usize = 10 * 1_024; // 10 kiB
 
-#[repr(C)]
-#[derive(Debug, PartialEq)]
-pub struct Header {
-    pub magic: [u8; 4],
-    pub format_version: [u8; 2],
-    pub flags: [u8; 2],
-    pub len: [u8; 4],
-}
-
-const _: () = assert!(size_of::<Header>() == 12);
-
-impl Header {
-    fn read(bytes: &[u8]) -> Option<(Header, &[u8])> {
-        let (&magic, rest) = bytes.split_first_chunk()?;
-        let (&format_version, rest) = rest.split_first_chunk()?;
-        let (&flags, rest) = rest.split_first_chunk()?;
-        let (&len, rest) = rest.split_first_chunk()?;
-        Some((
-            Header {
-                magic,
-                len,
-                format_version,
-                flags,
-            },
-            rest,
-        ))
-    }
-}
-
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Chunk<'a> {
     pub four_cc: [u8; 4],
