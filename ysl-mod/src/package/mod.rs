@@ -28,7 +28,7 @@ pub enum PackageRejection {
 }
 
 #[non_exhaustive]
-#[derive(Debug, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum FourCC {
     LuaScript,
     RhaiScript,
@@ -58,25 +58,6 @@ impl From<FourCC> for [u8; 4] {
             FourCC::Metadata => b"META",
             FourCC::Png => b"PNG\0",
         }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Chunk<'a> {
-    pub four_cc: FourCC,
-    pub payload: &'a [u8],
-}
-
-impl<'a> Chunk<'a> {
-    pub fn from_raw(raw: raw::Chunk<'a>) -> Option<Chunk<'a>> {
-        let Ok(four_cc) = raw.four_cc.try_into() else {
-            return None;
-        };
-
-        Some(Chunk {
-            four_cc,
-            payload: raw.payload,
-        })
     }
 }
 

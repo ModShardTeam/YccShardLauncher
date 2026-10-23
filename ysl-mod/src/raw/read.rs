@@ -35,6 +35,15 @@ struct ChunkHeader {
     len: [u8; 4],
 }
 
+const _: () = assert!(size_of::<ChunkHeader>() == 8);
+
+impl ChunkHeader {
+    fn read(bytes: &[u8]) -> Option<(ChunkHeader, &[u8])> {
+        let (&four_cc, rest) = bytes.split_first_chunk()?;
+        let (&len, rest) = rest.split_first_chunk()?;
+        Some((ChunkHeader { four_cc, len }, rest))
+    }
+}
 pub struct ChunkIter<'a> {
     state: &'a [u8],
 }
@@ -104,14 +113,8 @@ fn parse_header(bytes: &[u8]) -> Result<(Header, &[u8]), raw::RawRejection> {
     Ok((header, rest))
 }
 
-fn parse_chunk_header(bytes: &[u8]) -> Option<(ChunkHeader, &[u8])> {
-    let (&four_cc, rest) = bytes.split_first_chunk()?;
-    let (&len, rest) = rest.split_first_chunk()?;
-    Some((ChunkHeader { four_cc, len }, rest))
-}
-
 pub fn parse_chunk<'a>(bytes: &'a [u8]) -> Result<(raw::Chunk<'a>, &'a [u8]), raw::ChunkRejection> {
-    let Some((chunk_header, rest)) = parse_chunk_header(bytes) else {
+    let Some((chunk_header, rest)) = ChunkHeader::read(bytes) else {
         return Err(raw::ChunkRejection::NotEnoughDataHeader {
             needed: size_of::<ChunkHeader>(),
             available: bytes.len(),

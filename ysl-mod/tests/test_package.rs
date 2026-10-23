@@ -5,31 +5,6 @@ use ysl_mod::package;
 use ysl_mod::raw;
 
 #[test]
-fn convert_valid_id_chunk() {
-    let chunk = package::Chunk::from_raw(raw::Chunk {
-        four_cc: *common::ID_RHAI,
-        payload: &[0x00, 0x01, 0x02, 0x03],
-    })
-    .expect("valid operation");
-    assert_eq!(
-        chunk,
-        package::Chunk {
-            four_cc: package::FourCC::RhaiScript,
-            payload: &[0x00, 0x01, 0x02, 0x03]
-        },
-    )
-}
-
-#[test]
-fn convert_invalid_id_chunk() {
-    let rej = package::Chunk::from_raw(raw::Chunk {
-        four_cc: *b"BAD\0",
-        payload: &[0x00, 0x01, 0x02, 0x03],
-    });
-    assert_eq!(rej, None,)
-}
-
-#[test]
 fn convert_skips_unknown_id() {
     let raw_file = raw::File {
         format_version: 1,
