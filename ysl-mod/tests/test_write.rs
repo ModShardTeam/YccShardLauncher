@@ -1,100 +1,7 @@
 mod common;
 use std::collections::BTreeMap;
 
-use ysl_mod::{package, raw};
-
-#[test]
-fn write_valid_package_file() {
-    let package_to_write = package::Package {
-        meta: package::Metadata {
-            mod_name: "test_mod".to_string(),
-            version: semver::Version::new(0, 1, 0),
-            engine: "rhai".to_string(),
-            entry_point: Some("ab_5c".to_string()),
-            game_version: "1.0.0".to_string(),
-            author_name: "test_author".to_string(),
-            short_desc: Some("this is a test".to_string()),
-            dependencies: BTreeMap::from([
-                (
-                    "other_test".to_string(),
-                    semver::VersionReq {
-                        comparators: vec![semver::Comparator {
-                            op: semver::Op::Exact,
-                            major: 1,
-                            minor: Some(0),
-                            patch: None,
-                            pre: semver::Prerelease::EMPTY,
-                        }],
-                    },
-                ),
-                (
-                    "yet_another_test".to_string(),
-                    semver::VersionReq {
-                        comparators: vec![semver::Comparator {
-                            op: semver::Op::Greater,
-                            major: 0,
-                            minor: Some(2),
-                            patch: None,
-                            pre: semver::Prerelease::EMPTY,
-                        }],
-                    },
-                ),
-            ]),
-        },
-
-        rhai_scripts: BTreeMap::from([("ab_5c".to_string(), "fn load(mod) { }".to_string())]),
-    };
-
-    let file = package::write::write(&package_to_write, 0).expect("valid operation");
-    assert_eq!(
-        file,
-        raw::FileBuf {
-            format_version: 1,
-            flags: 0,
-            chunks: vec![
-                raw::ChunkBuf {
-                    four_cc: *common::ID_META,
-                    payload: common::dummy_metadata("ab_5c").as_bytes().to_vec(),
-                },
-                raw::ChunkBuf {
-                    four_cc: *common::ID_RHAI,
-                    payload: [vec![5], b"ab_5c".to_vec(), b"fn load(mod) { }".to_vec()].concat(),
-                }
-            ],
-        },
-    )
-}
-
-#[test]
-fn reversible_valid_package_to_file() {
-    let package_to_write = package::Package {
-        meta: package::Metadata {
-            mod_name: "test_mod".to_string(),
-            version: semver::Version::new(0, 1, 0),
-            engine: "rhai".to_string(),
-            entry_point: Some("ab_5c".to_string()),
-            game_version: "1.0.0".to_string(),
-            author_name: "test_author".to_string(),
-            short_desc: Some("this is a test".to_string()),
-            dependencies: BTreeMap::from([
-                (
-                    "other_test".to_string(),
-                    semver::VersionReq::parse("=1.0").unwrap(),
-                ),
-                (
-                    "yet_another_test".to_string(),
-                    semver::VersionReq::parse(">0.2").unwrap(),
-                ),
-            ]),
-        },
-
-        rhai_scripts: BTreeMap::from([("ab_5c".to_string(), "fn load(mod) { }".to_string())]),
-    };
-
-    let file_buff = package::write::write(&package_to_write, 0).expect("valid operation");
-    let read_package = package::read::read((&file_buff).into()).expect("valid operation");
-    assert_eq!(package_to_write, read_package)
-}
+use ysl_mod::package;
 
 #[test]
 fn invalid_serialization_metadata() {
@@ -127,11 +34,8 @@ fn reversible_valid_package_to_bytes() {
         rhai_scripts: BTreeMap::from([("ab_5c".to_string(), "fn load(mod) { }".to_string())]),
     };
 
-    let file_buff = package::write::write(&package_to_write, 0).expect("valid operation");
-    let bytes = raw::write::write_file(&file_buff).expect("valid operation");
-
-    let file = raw::read::parse_file(&bytes).expect("valid operation");
-    let read_package = package::read::read(file).expect("valid operation");
+    let bytes = package::write::write(&package_to_write, 0).expect("valid operation");
+    let read_package = package::read::read(&bytes).expect("valid operation");
     assert_eq!(package_to_write, read_package)
 }
 
@@ -198,11 +102,8 @@ fn uppercase_declared_entry_point() {
         rhai_scripts: BTreeMap::from([("ab_5c".to_string(), "fn load(mod) { }".to_string())]),
     };
 
-    let file_buff = package::write::write(&package_to_write, 0).expect("valid operation");
-    let bytes = raw::write::write_file(&file_buff).expect("valid operation");
-
-    let file = raw::read::parse_file(&bytes).expect("valid operation");
-    let read_package = package::read::read(file).expect("valid operation");
+    let bytes = package::write::write(&package_to_write, 0).expect("valid operation");
+    let read_package = package::read::read(&bytes).expect("valid operation");
 
     assert_eq!(
         read_package,
@@ -332,7 +233,10 @@ fn rhai_null_name() {
     };
 
     let rej = package::write::write(&package_to_write, 0).unwrap_err();
-    assert_eq!(rej, package::PackageRejection::RhaiNullName);
+    assert_eq!(
+        rej,
+        package::PackageRejection::RhaiRejection(package::RhaiRejection::NullName)
+    );
 }
 
 #[test]
@@ -368,10 +272,10 @@ fn rhai_non_ascii_name() {
     assert_eq!(
         rej,
         // TODO: Not the correct rejection, in the bytes -> Package it makes sense, not here
-        package::PackageRejection::RhaiInvalidByteName {
+        package::PackageRejection::RhaiRejection(package::RhaiRejection::InvalidByteName {
             name: "moš".as_bytes().to_vec(),
             reason: "Invalid character 'š' found in name".to_string()
-        }
+        })
     );
 }
 
@@ -401,11 +305,8 @@ fn rhai_uppercase_name() {
         rhai_scripts: BTreeMap::from([("MoD".to_string(), "fn load(mod) { }".to_string())]),
     };
 
-    let file_buff = package::write::write(&package_to_write, 0).expect("valid operation");
-    let bytes = raw::write::write_file(&file_buff).expect("valid operation");
-
-    let file = raw::read::parse_file(&bytes).expect("valid operation");
-    let read_package = package::read::read(file).expect("valid operation");
+    let bytes = package::write::write(&package_to_write, 0).expect("valid operation");
+    let read_package = package::read::read(&bytes).expect("valid operation");
     assert_eq!(
         read_package,
         package::Package {
