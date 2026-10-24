@@ -46,7 +46,7 @@ fn parse_empty_payload() {
     let (parsed_chunk, rest) = raw::read::parse_chunk(&input).expect("valid operation");
     assert_eq!(
         parsed_chunk,
-        raw::RChunk {
+        raw::Chunk {
             four_cc: *b"RHAI",
             payload: &[]
         }
@@ -73,7 +73,7 @@ fn parse_valid_chunk() {
     let (parsed_chunk, rest) = raw::read::parse_chunk(&input).expect("valid operation");
     assert_eq!(
         parsed_chunk,
-        raw::RChunk {
+        raw::Chunk {
             four_cc: *b"META",
             payload: &[0xA0, 0xA1, 0xA2]
         }
@@ -88,7 +88,7 @@ fn parse_valid_chunk_extra_byte() {
     let (parsed_chunk, rest) = raw::read::parse_chunk(&input).expect("valid operation");
     assert_eq!(
         parsed_chunk,
-        raw::RChunk {
+        raw::Chunk {
             four_cc: *b"META",
             payload: &[0xA0, 0xA1, 0xA2]
         }
@@ -121,7 +121,7 @@ fn parse_consecutive_chunks() {
     let (first_parsed_chunk, first_rest) = raw::read::parse_chunk(&input).expect("valid operation");
     assert_eq!(
         first_parsed_chunk,
-        raw::RChunk {
+        raw::Chunk {
             four_cc: *b"META",
             payload: &[0xA0, 0xA1, 0xA2]
         }
@@ -130,7 +130,7 @@ fn parse_consecutive_chunks() {
         raw::read::parse_chunk(first_rest).expect("valid operation");
     assert_eq!(
         second_parsed_chunk,
-        raw::RChunk {
+        raw::Chunk {
             four_cc: *b"RHAI",
             payload: &[0xB0, 0xB1, 0xB2, 0xB3]
         }
@@ -146,7 +146,7 @@ fn parse_iterator_stop() {
 
     assert_eq!(
         iter.next(),
-        Some(Ok(raw::RChunk {
+        Some(Ok(raw::Chunk {
             four_cc: *b"META",
             payload: &[0xA0, 0xA1, 0xA2]
         }))
@@ -170,27 +170,27 @@ fn parse_valid_file() {
     let f = raw::read::parse_file(&file).expect("valid operation");
     assert_eq!(
         f,
-        raw::RFile {
+        raw::File {
             format_version: 1,
             flags: 0,
             chunks: vec![
-                raw::RChunk {
+                raw::Chunk {
                     four_cc: *common::ID_META,
                     payload: &[0xA0, 0xA1, 0xA2]
                 },
-                raw::RChunk {
+                raw::Chunk {
                     four_cc: *common::ID_RHAI,
                     payload: &[0xB0, 0xB1, 0xB2, 0xB3]
                 },
-                raw::RChunk {
+                raw::Chunk {
                     four_cc: *common::ID_RHAI,
                     payload: &[0xC0, 0xC1, 0xC2, 0xC3]
                 },
-                raw::RChunk {
+                raw::Chunk {
                     four_cc: *common::ID_RHAI,
                     payload: &[0xD0, 0xD1, 0xD2, 0xD3]
                 },
-                raw::RChunk {
+                raw::Chunk {
                     four_cc: *common::ID_RHAI,
                     payload: &[0x00, 0x01, 0x02, 0x03]
                 }
@@ -303,7 +303,7 @@ fn parse_valid_empty_chunks_file() {
     let f = raw::read::parse_file(&file).expect("valid operation");
     assert_eq!(
         f,
-        raw::RFile {
+        raw::File {
             format_version: 1,
             flags: 0,
             chunks: vec![],
@@ -323,19 +323,19 @@ fn parse_unknown_chunk_id_file() {
     let f = raw::read::parse_file(&file).expect("valid operation");
     assert_eq!(
         f,
-        raw::RFile {
+        raw::File {
             format_version: 1,
             flags: 0,
             chunks: vec![
-                raw::RChunk {
+                raw::Chunk {
                     four_cc: *b"META",
                     payload: &[0xA0, 0xA1, 0xA2]
                 },
-                raw::RChunk {
+                raw::Chunk {
                     four_cc: *b"NOT\0",
                     payload: &[0xB0, 0xB1, 0xB2]
                 },
-                raw::RChunk {
+                raw::Chunk {
                     four_cc: *b"META",
                     payload: &[0xC0, 0xC1, 0xC2]
                 }

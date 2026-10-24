@@ -1,5 +1,5 @@
-pub mod name;
 pub mod read;
+pub mod validate;
 pub mod write;
 
 use std::collections::BTreeMap;
@@ -75,7 +75,7 @@ where
             }
             if let Some(c) = lower_s
                 .chars()
-                .find(|&c| !(c.is_ascii() && name::is_valid_name_byte(c as u8)))
+                .find(|&c| !(c.is_ascii() && validate::is_valid_name_byte(c as u8)))
             {
                 return Err(D::Error::custom(format!(
                     "Invalid character {c:?} found in entry_name"

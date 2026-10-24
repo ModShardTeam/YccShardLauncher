@@ -14,7 +14,7 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Pack
     let Some((name_bytes, rest)) = rest.split_at_checked(name_len as usize) else {
         return Err(package::PackageRejection::RhaiInvalidNameLen);
     };
-    let name = package::name::validate_name(name_bytes)?;
+    let name = package::validate::validate_name(name_bytes)?;
 
     let data = String::from_utf8(rest.to_vec()).map_err(|e| {
         package::PackageRejection::RhaiInvalidScript {
@@ -26,7 +26,7 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Pack
     Ok((name, data))
 }
 
-pub fn read<'a>(file: raw::RFile<'a>) -> Result<package::Package, package::PackageRejection> {
+pub fn read<'a>(file: raw::File<'a>) -> Result<package::Package, package::PackageRejection> {
     let mut metadata_filter = file.chunks.iter().filter(|&c| {
         c.four_cc
             == <package::FourCC as std::convert::Into<[u8; 4]>>::into(package::FourCC::Metadata)

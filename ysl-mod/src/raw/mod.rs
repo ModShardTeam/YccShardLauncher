@@ -27,7 +27,7 @@ impl From<ChunkRejection> for RawRejection {
     }
 }
 
-const YFF_MAGIC: &[u8; 4] = b"YFF\0";
+pub const YFF_MAGIC: &[u8; 4] = b"YFF\0";
 const OLDEST_SUPPORTED_VERSION: u16 = 1;
 pub const CURRENT_FORMAT_VERSION: u16 = 1;
 
@@ -36,21 +36,50 @@ const KNOWN_MASK: u16 = 0;
 const MAXIMUM_FILE_SIZE: usize = 1_024 * 1_024; // 1 MiB
 const MAXIMUM_PAYLOAD_SIZE: usize = 10 * 1_024; // 10 kiB
 
+#[repr(C)]
+#[derive(Debug, PartialEq)]
+struct Header {
+    magic: [u8; 4],
+    format_version: [u8; 2],
+    flags: [u8; 2],
+    len: [u8; 4],
+}
+
+const _: () = assert!(size_of::<Header>() == 12);
+
+impl Header {
+    fn read(bytes: &[u8]) -> Option<(Header, &[u8])> {
+        let (&magic, rest) = bytes.split_first_chunk()?;
+        let (&format_version, rest) = rest.split_first_chunk()?;
+        let (&flags, rest) = rest.split_first_chunk()?;
+        let (&len, rest) = rest.split_first_chunk()?;
+        Some((
+            Header {
+                magic,
+                len,
+                format_version,
+                flags,
+            },
+            rest,
+        ))
+    }
+}
+
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub struct RChunk<'a> {
+pub struct Chunk<'a> {
     pub four_cc: [u8; 4],
     pub payload: &'a [u8],
 }
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct WChunk {
+pub struct ChunkBuf {
     pub four_cc: [u8; 4],
     pub payload: Vec<u8>,
 }
 
-impl<'a> From<&'a WChunk> for RChunk<'a> {
-    fn from(value: &'a WChunk) -> Self {
-        RChunk {
+impl<'a> From<&'a ChunkBuf> for Chunk<'a> {
+    fn from(value: &'a ChunkBuf) -> Self {
+        Chunk {
             four_cc: value.four_cc,
             payload: &value.payload,
         }
@@ -58,25 +87,8 @@ impl<'a> From<&'a WChunk> for RChunk<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-pub struct RFile<'a> {
+pub struct File<'a> {
     pub format_version: u16,
     pub flags: u16,
-    pub chunks: Vec<RChunk<'a>>,
-}
-
-#[derive(Debug, PartialEq)]
-pub struct WFile {
-    pub format_version: u16,
-    pub flags: u16,
-    pub chunks: Vec<WChunk>,
-}
-
-impl<'a> From<&'a WFile> for RFile<'a> {
-    fn from(value: &'a WFile) -> Self {
-        RFile {
-            format_version: value.format_version,
-            flags: value.flags,
-            chunks: value.chunks.iter().map(|c| c.into()).collect::<Vec<_>>(),
-        }
-    }
+    pub chunks: Vec<Chunk<'a>>,
 }
