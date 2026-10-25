@@ -19,6 +19,7 @@ pub enum ChunkRejection {
 pub enum NameRejection {
     Null,
     InvalidLen,
+    TooLong { name: String, len: usize },
     Invalid { name: String, reason: String },
 }
 

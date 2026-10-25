@@ -138,9 +138,14 @@ impl PackageBuilder {
         self
     }
 
-    pub fn add_rhai(&mut self, name: &str) -> &mut Self {
+    pub fn add_default_rhai(&mut self, name: &str) -> &mut Self {
         self.rhai_scripts
             .insert(name.to_string(), "fn load(mod) { }".to_string());
+        self
+    }
+
+    pub fn add_rhai(&mut self, name: &str, data: &str) -> &mut Self {
+        self.rhai_scripts.insert(name.to_string(), data.to_string());
         self
     }
 
@@ -279,7 +284,7 @@ impl BytesBuilder {
         self
     }
 
-    pub fn add_rhai(&mut self, name: &str) -> &mut Self {
+    pub fn add_default_rhai(&mut self, name: &str) -> &mut Self {
         let payload: &[u8] = &[
             &(name.len() as u8).to_le_bytes(),
             name.as_bytes(),

@@ -112,7 +112,7 @@ fn unknown_chunk_id_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(None)
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .add_arbitrary_chunk(
             &common::ChunkBuilder::new()
                 .id(b"NOT\0")
@@ -176,7 +176,7 @@ fn partial_header_chunk_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(None)
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .add_arbitrary_chunk(
             &common::ChunkBuilder::new()
                 .id(common::ID_RHAI)
@@ -200,7 +200,7 @@ fn overrun_chunk_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(None)
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .add_arbitrary_chunk(
             &common::ChunkBuilder::new()
                 .id(common::ID_RHAI)
@@ -225,7 +225,7 @@ fn valid_meta_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"))
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .build();
 
     let package = package::read::read(&bytes).expect("valid operation");
@@ -277,7 +277,7 @@ fn valid_meta_package() {
 fn no_meta_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .build();
 
     let rej: package::PackageRejection = package::read::read(&bytes).unwrap_err();
@@ -290,7 +290,7 @@ fn two_metas_package() {
         .format_version(1)
         .add_meta(Some("mod"))
         .add_meta(Some("mod"))
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .build();
 
     let rej: package::PackageRejection = package::read::read(&bytes).unwrap_err();
@@ -302,7 +302,7 @@ fn valid_rhai_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("ab_5c"))
-        .add_rhai("ab_5c")
+        .add_default_rhai("ab_5c")
         .build();
 
     let package = package::read::read(&bytes).expect("valid operation");
@@ -355,7 +355,7 @@ fn null_rhai_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"))
-        .add_rhai("")
+        .add_default_rhai("")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -370,8 +370,8 @@ fn reserved_device_rhai_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"))
-        .add_rhai("mod")
-        .add_rhai("con")
+        .add_default_rhai("mod")
+        .add_default_rhai("con")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -391,8 +391,8 @@ fn invalid_char_rhai_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"))
-        .add_rhai("y;u")
-        .add_rhai("mod")
+        .add_default_rhai("y;u")
+        .add_default_rhai("mod")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -412,8 +412,8 @@ fn uppercase_char_rhai_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"))
-        .add_rhai("mod")
-        .add_rhai("YUU")
+        .add_default_rhai("mod")
+        .add_default_rhai("YUU")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -433,7 +433,7 @@ fn empty_entry_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some(""))
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -451,7 +451,7 @@ fn invalid_entry_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("moš"))
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -471,7 +471,7 @@ fn missing_entry_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("ab_5c"))
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -488,7 +488,7 @@ fn uppercase_entry_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("AB_5C"))
-        .add_rhai("ab_5c")
+        .add_default_rhai("ab_5c")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -508,7 +508,7 @@ fn neither_entry_name_nor_mod_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(None)
-        .add_rhai("ab_5c")
+        .add_default_rhai("ab_5c")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -525,8 +525,8 @@ fn duplicate_names_rhai_script_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"))
-        .add_rhai("mod")
-        .add_rhai("mod")
+        .add_default_rhai("mod")
+        .add_default_rhai("mod")
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -543,7 +543,7 @@ fn unsupported_ids() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"))
-        .add_rhai("mod")
+        .add_default_rhai("mod")
         .add_arbitrary_chunk(&common::ChunkBuilder::new().id(b"LUA\0").build())
         .build();
 
