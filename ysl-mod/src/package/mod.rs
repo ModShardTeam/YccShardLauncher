@@ -4,7 +4,7 @@ pub mod write;
 
 use std::collections::BTreeMap;
 
-use serde::{Deserialize, Deserializer, Serialize, de::Error};
+use serde::{Deserialize, Serialize};
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
