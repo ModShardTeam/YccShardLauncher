@@ -1,7 +1,17 @@
 use crate::package;
 
-fn encode_rhai_payload(name: &str, data: &str) -> Vec<u8> {
-    [&[name.len() as u8], name.as_bytes(), data.as_bytes()].concat()
+fn encode_rhai_payload(name: &str, data: &str) -> Result<Vec<u8>, package::RhaiRejection> {
+    Ok([
+        &[u8::try_from(name.len()).map_err(|_| {
+            package::RhaiRejection::Name(package::NameRejection::TooLong {
+                name: name.to_string(),
+                len: name.len(),
+            })
+        })?],
+        name.as_bytes(),
+        data.as_bytes(),
+    ]
+    .concat())
 }
 
 // TODO: use struct first to ensure size of each element
@@ -29,10 +39,13 @@ pub fn write(package: &package::Package, flags: u16) -> Result<Vec<u8>, package:
     };
 
     let mut chunks: Vec<package::ChunkBuf> = vec![meta_chunk];
-    chunks.extend(package.rhai_scripts.iter().map(|(n, d)| package::ChunkBuf {
-        four_cc: package::FourCC::RhaiScript.into(),
-        payload: encode_rhai_payload(n, d),
-    }));
+
+    for (n, d) in &package.rhai_scripts {
+        chunks.push(package::ChunkBuf {
+            four_cc: package::FourCC::RhaiScript.into(),
+            payload: encode_rhai_payload(n, d)?,
+        });
+    }
 
     let mut header = [
         package::YFF_MAGIC as &[u8],
@@ -44,6 +57,12 @@ pub fn write(package: &package::Package, flags: u16) -> Result<Vec<u8>, package:
     let payload = chunks.iter().flat_map(write_chunk).collect::<Vec<_>>();
 
     header.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+    let bytes = [header, payload].concat();
 
-    Ok([header, payload].concat())
+    if bytes.len() >= package::MAXIMUM_FILE_SIZE {
+        return Err(package::PackageRejection::TooBigFile {
+            declared: bytes.len(),
+        });
+    }
+    Ok(bytes)
 }

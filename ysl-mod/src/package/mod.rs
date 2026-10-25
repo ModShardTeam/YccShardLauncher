@@ -18,7 +18,7 @@ pub enum ChunkRejection {
 #[derive(Debug, PartialEq)]
 pub enum NameRejection {
     Null,
-    InvalidLen,
+    NameLenPastEnd { declared: usize, available: usize },
     TooLong { name: String, len: usize },
     Invalid { name: String, reason: String },
 }
@@ -126,7 +126,7 @@ const CURRENT_FORMAT_VERSION: u16 = 1;
 
 const KNOWN_MASK: u16 = 0;
 
-const MAXIMUM_FILE_SIZE: usize = 1_024 * 1_024; // 1 MiB
+const MAXIMUM_FILE_SIZE: usize = 256 * 1_024; // 1 MiB
 const MAXIMUM_PAYLOAD_SIZE: usize = 10 * 1_024; // 10 kiB
 
 #[repr(C)]

@@ -230,14 +230,14 @@ fn rhai_name_not_u8() {
 fn rhai_bigger_than_10kib() {
     let package_to_write = common::PackageBuilder::new()
         .clear_rhai()
-        .add_rhai("mod", &"a".repeat(10 * 1024 + 1))
+        .add_rhai("mod", &"a".repeat(10 * 1024))
         .build();
 
     let rej = package::write::write(&package_to_write, 0).unwrap_err();
     assert_eq!(
         rej,
         package::PackageRejection::Chunk(package::ChunkRejection::TooBigPayload {
-            declared: 10 * 1024 + 1
+            declared: 10 * 1024 + 4
         })
     )
 }
@@ -247,15 +247,13 @@ fn package_too_big() {
     let mut builder = common::PackageBuilder::new();
 
     for i in 0..100 {
-        builder.add_rhai(&format!("mod{i}"), &"a".repeat(10 * 1024));
+        builder.add_rhai(&format!("mod{i}"), &"a".repeat(9 * 1024));
     }
     let package_to_write = builder.build();
 
     let rej = package::write::write(&package_to_write, 0).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::Chunk(package::ChunkRejection::TooBigPayload {
-            declared: 10 * 1024 + 1
-        })
+        package::PackageRejection::TooBigFile { declared: 923191 }
     )
 }

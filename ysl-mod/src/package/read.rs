@@ -94,7 +94,10 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Rhai
 
     let Some((name_bytes, rest)) = rest.split_at_checked(name_len as usize) else {
         return Err(package::RhaiRejection::Name(
-            package::NameRejection::InvalidLen,
+            package::NameRejection::NameLenPastEnd {
+                declared: name_len as usize,
+                available: rest.len(),
+            },
         ));
     };
     let name = String::from_utf8(name_bytes.to_vec()).map_err(|e| {
