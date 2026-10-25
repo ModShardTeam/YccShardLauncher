@@ -161,6 +161,69 @@ impl PackageBuilder {
     }
 }
 
+enum ChunkLen {
+    None,
+    Computed,
+    Set(Vec<u8>),
+}
+
+pub struct ChunkBuilder {
+    id: Vec<u8>,
+    len: ChunkLen,
+    payload: Vec<u8>,
+}
+
+impl ChunkBuilder {
+    pub fn new() -> Self {
+        ChunkBuilder {
+            id: vec![],
+            len: ChunkLen::Computed,
+            payload: vec![],
+        }
+    }
+
+    pub fn id(&mut self, id: &[u8]) -> &mut Self {
+        self.id = id.to_vec();
+        self
+    }
+
+    pub fn len(&mut self, len: u32) -> &mut Self {
+        self.len = ChunkLen::Set(len.to_le_bytes().to_vec());
+        self
+    }
+
+    pub fn arbitrary_len(&mut self, len: &[u8]) -> &mut Self {
+        self.len = ChunkLen::Set(len.to_vec());
+        self
+    }
+
+    pub fn remove_len(&mut self) -> &mut Self {
+        self.len = ChunkLen::None;
+        self
+    }
+
+    pub fn payload(&mut self, payload: &[u8]) -> &mut Self {
+        self.payload = payload.to_vec();
+        self
+    }
+
+    pub fn build(&self) -> Vec<u8> {
+        match self.len {
+            ChunkLen::None => self.id.clone(),
+            ChunkLen::Computed => {
+                let len = self.payload.len() as u32;
+                [
+                    &self.id as &[u8],
+                    &len.to_le_bytes(),
+                    &self.payload as &[u8],
+                ]
+                .concat()
+            }
+            ChunkLen::Set(ref l) => [&self.id as &[u8], &l, &self.payload as &[u8]].concat(),
+        }
+    }
+}
+
 pub struct BytesBuilder {
     magic: [u8; 4],
     format_version: u16,
@@ -200,18 +263,6 @@ impl BytesBuilder {
         self
     }
 
-    pub fn add_valid_chunk(&mut self, id: &[u8; 4], payload: &[u8]) -> &mut Self {
-        self.chunks
-            .extend([id, &(payload.len() as u32).to_le_bytes(), payload].concat());
-        self
-    }
-
-    pub fn add_chunk(&mut self, id: &[u8; 4], len: u32, payload: &[u8]) -> &mut Self {
-        self.chunks
-            .extend([id, &len.to_le_bytes(), payload].concat());
-        self
-    }
-
     pub fn add_meta(&mut self, entry: Option<&str>) -> &mut Self {
         let meta_string = match entry {
             None => dummy_no_entry_metadata(),
@@ -237,6 +288,11 @@ impl BytesBuilder {
         .concat();
         self.chunks
             .extend([ID_RHAI, &(payload.len() as u32).to_le_bytes(), payload].concat());
+        self
+    }
+
+    pub fn add_arbitrary_chunk(&mut self, c: &[u8]) -> &mut Self {
+        self.chunks.extend(c);
         self
     }
 
