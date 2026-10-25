@@ -113,6 +113,15 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Rhai
     Ok((name, data))
 }
 
+fn chunk_filter<'a>(
+    chunks: &'a [package::Chunk],
+    four_cc: package::FourCC,
+) -> impl Iterator<Item = &'a package::Chunk<'a>> {
+    chunks.iter().filter(move |c| {
+        c.four_cc == <package::FourCC as std::convert::Into<[u8; 4]>>::into(four_cc)
+    })
+}
+
 pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection> {
     if bytes.len() >= package::MAXIMUM_FILE_SIZE {
         return Err(package::PackageRejection::TooBigFile {
@@ -127,24 +136,12 @@ pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection>
         });
     };
     package::validate::validate_header_values(&raw_header, raw_chunks.len())?;
+    let chunks = ChunkIter::from(raw_chunks).collect::<Result<Vec<_>, _>>()?;
 
-    let mut metadata_filter = ChunkIter::from(raw_chunks).filter(|r| {
-        r.as_ref().is_ok_and(|c| {
-            c.four_cc
-                == <package::FourCC as std::convert::Into<[u8; 4]>>::into(package::FourCC::Metadata)
-        })
-    });
+    // read meta
+    let mut metadata_filter = chunk_filter(&chunks, package::FourCC::Metadata);
 
-    let rhai_filter = ChunkIter::from(raw_chunks).filter(|r| {
-        r.as_ref().is_ok_and(|c| {
-            c.four_cc
-                == <package::FourCC as std::convert::Into<[u8; 4]>>::into(
-                    package::FourCC::RhaiScript,
-                )
-        })
-    });
-
-    let Some(Ok(meta_chunk)) = metadata_filter.next() else {
+    let Some(meta_chunk) = metadata_filter.next() else {
         return Err(package::PackageRejection::NoMetaChunk);
     };
     if metadata_filter.next().is_some() {
@@ -155,9 +152,10 @@ pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection>
         Ok(meta) => meta,
     };
 
+    // read rhai
     let mut rhai_scripts: BTreeMap<String, String> = BTreeMap::new();
-    for c in rhai_filter {
-        let (name, data) = decode_rhai_payload(c?.payload)?;
+    for c in chunk_filter(&chunks, package::FourCC::RhaiScript) {
+        let (name, data) = decode_rhai_payload(c.payload)?;
         match rhai_scripts.entry(name) {
             Entry::Vacant(vacant_entry) => {
                 vacant_entry.insert(data);
@@ -170,6 +168,22 @@ pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection>
                 ));
             }
         }
+    }
+
+    // unsupported
+    if chunk_filter(&chunks, package::FourCC::LuaScript)
+        .next()
+        .is_some()
+    {
+        return Err(package::PackageRejection::KnownButUnsupportedId {
+            found: package::FourCC::LuaScript,
+        });
+    }
+
+    if chunk_filter(&chunks, package::FourCC::Png).next().is_some() {
+        return Err(package::PackageRejection::KnownButUnsupportedId {
+            found: package::FourCC::Png,
+        });
     }
 
     let package = package::Package { meta, rhai_scripts };

@@ -54,6 +54,7 @@ pub enum PackageRejection {
 
     NoMetaChunk,
     MultipleMetaChunkFound,
+    KnownButUnsupportedId { found: FourCC },
 
     // entry point related rejection
     Entry(EntryRejection),

@@ -190,7 +190,7 @@ fn partial_header_chunk_package() {
         rej,
         package::PackageRejection::Chunk(package::ChunkRejection::NotEnoughDataHeader {
             needed: 8,
-            available: 4
+            available: 5
         })
     );
 }
@@ -214,7 +214,7 @@ fn overrun_chunk_package() {
     assert_eq!(
         rej,
         package::PackageRejection::Chunk(package::ChunkRejection::NotEnoughDataPayload {
-            declared: 10,
+            declared: 100,
             available: 3
         })
     );
@@ -535,5 +535,23 @@ fn duplicate_names_rhai_script_package() {
         package::PackageRejection::Rhai(package::RhaiRejection::DuplicateName {
             found: "mod".to_string(),
         })
+    )
+}
+
+#[test]
+fn unsupported_ids() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"))
+        .add_rhai("mod")
+        .add_arbitrary_chunk(&common::ChunkBuilder::new().id(b"LUA\0").build())
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+    assert_eq!(
+        rej,
+        package::PackageRejection::KnownButUnsupportedId {
+            found: package::FourCC::LuaScript,
+        }
     )
 }
