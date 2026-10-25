@@ -4,6 +4,38 @@ use std::{assert_matches, collections::BTreeMap};
 use ysl_mod::package;
 
 #[test]
+fn reversible_read_write_from_lib() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
+        .add_default_rhai("mod")
+        .build();
+
+    let package = ysl_mod::read(&bytes).expect("valid operation");
+    let written_bytes = ysl_mod::write(&package, 0).expect("valid operation");
+    let read_package = ysl_mod::read(&written_bytes).expect("valid operation");
+
+    assert_eq!(package, read_package);
+    assert_eq!(bytes, written_bytes);
+}
+
+#[test]
+fn reversible_read_write() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
+        .add_default_rhai("mod")
+        .build();
+
+    let package = package::read::read(&bytes).expect("valid operation");
+    let written_bytes = package::write::write(&package, 0).expect("valid operation");
+    let read_package = package::read::read(&written_bytes).expect("valid operation");
+
+    assert_eq!(package, read_package);
+    assert_eq!(bytes, written_bytes);
+}
+
+#[test]
 fn bad_magic_package() {
     let bytes = common::BytesBuilder::new()
         .magic(*b"BAD\0")

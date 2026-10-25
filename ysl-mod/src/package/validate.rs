@@ -62,8 +62,8 @@ pub fn validate_package(package: &package::Package) -> Result<(), package::Packa
 }
 
 pub fn validate_size_chunk(c: &package::Chunk) -> Result<(), package::ChunkRejection> {
-    if c.size() > package::MAXIMUM_PAYLOAD_SIZE {
-        return Err(package::ChunkRejection::TooBigPayload { declared: c.size() });
+    if c.size() > package::MAXIMUM_CHUNK_SIZE {
+        return Err(package::ChunkRejection::TooBigChunk { declared: c.size() });
     }
     Ok(())
 }

@@ -19,7 +19,6 @@ short_desc = "this is a test"
 [dependencies]
 other_test = {req:?}
 yet_another_test = ">0.2"
-
 "#
     )
 }
@@ -36,7 +35,6 @@ short_desc = "this is a test"
 [dependencies]
 other_test = {req:?}
 yet_another_test = ">0.2"
-
 "#
     )
 }

@@ -11,7 +11,7 @@ use serde::{Deserialize, Serialize};
 pub enum ChunkRejection {
     NotEnoughDataHeader { needed: usize, available: usize },
     NotEnoughDataPayload { declared: u32, available: usize },
-    TooBigPayload { declared: usize },
+    TooBigChunk { declared: usize },
 }
 
 #[non_exhaustive]
@@ -127,7 +127,7 @@ const CURRENT_FORMAT_VERSION: u16 = 1;
 const KNOWN_MASK: u16 = 0;
 
 const MAXIMUM_FILE_SIZE: usize = 256 * 1_024; // 256 kiB
-const MAXIMUM_PAYLOAD_SIZE: usize = 10 * 1_024; // 10 kiB
+const MAXIMUM_CHUNK_SIZE: usize = 10 * 1_024; // 10 kiB
 
 #[repr(C)]
 #[derive(Debug, PartialEq)]

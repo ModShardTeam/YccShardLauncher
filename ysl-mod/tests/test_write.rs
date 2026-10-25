@@ -236,7 +236,7 @@ fn rhai_bigger_than_10kib() {
     let rej = package::write::write(&package_to_write, 0).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::Chunk(package::ChunkRejection::TooBigPayload {
+        package::PackageRejection::Chunk(package::ChunkRejection::TooBigChunk {
             declared: 10 * 1024 + 1
         })
     )
@@ -279,8 +279,6 @@ fn meta_too_big() {
     let rej = package::write::write(&package_to_write, 0).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::Chunk(package::ChunkRejection::TooBigPayload {
-            declared: 11407
-        })
+        package::PackageRejection::Chunk(package::ChunkRejection::TooBigChunk { declared: 11407 })
     )
 }

@@ -18,7 +18,7 @@ fn encode_rhai_payload(name: &str, data: &str) -> Result<Vec<u8>, package::RhaiR
 pub fn write_chunk(c: &package::ChunkBuf) -> Result<Vec<u8>, package::ChunkRejection> {
     Ok([
         &c.four_cc as &[u8],
-        &(u32::try_from(c.payload.len()).map_err(|_| package::ChunkRejection::TooBigPayload {
+        &(u32::try_from(c.payload.len()).map_err(|_| package::ChunkRejection::TooBigChunk {
             declared: c.payload.len(),
         })?)
         .to_le_bytes(),
