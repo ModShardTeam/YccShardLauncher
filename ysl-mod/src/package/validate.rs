@@ -10,27 +10,29 @@ pub fn is_valid_name_byte(b: u8) -> bool {
     matches!(b, b'-' | b'_' | b'a'..=b'z' | b'0'..=b'9')
 }
 
-fn validate_name(name: &str) -> Result<(), package::RhaiRejection> {
+fn validate_name(name: &str) -> Result<(), package::NameRejection> {
     if name.is_empty() {
-        return Err(package::RhaiRejection::NullName);
+        return Err(package::NameRejection::Null);
     }
 
     if u32::try_from(name.len()).is_err() {
-        return Err(package::RhaiRejection::InvalidNameLen);
+        return Err(package::NameRejection::InvalidLen);
     }
 
     if let Some(c) = name
         .chars()
         .find(|&c| !(c.is_ascii() && is_valid_name_byte(c as u8)))
     {
-        return Err(package::RhaiRejection::InvalidName {
+        return Err(package::NameRejection::Invalid {
+            name: name.to_string(),
             reason: format!("Invalid character {c:?} found"),
         });
     }
 
     let uppercase = &name.to_ascii_uppercase() as &str;
     if RESERVED_WINDOWS_DEVICE_NAME.contains(&uppercase) {
-        Err(package::RhaiRejection::InvalidName {
+        Err(package::NameRejection::Invalid {
+            name: name.to_string(),
             reason: "Reserved device name".to_string(),
         })
     } else {
@@ -40,14 +42,17 @@ fn validate_name(name: &str) -> Result<(), package::RhaiRejection> {
 
 pub fn validate(package: &package::Package) -> Result<(), package::PackageRejection> {
     let expected_entry_point = package.entry();
+    validate_name(expected_entry_point).map_err(package::EntryRejection::Name)?;
     if !package.rhai_scripts.contains_key(expected_entry_point) {
-        return Err(package::PackageRejection::NoEntryPoint {
-            expected: expected_entry_point.to_string(),
-        });
+        return Err(package::PackageRejection::Entry(
+            package::EntryRejection::None {
+                expected: expected_entry_point.to_string(),
+            },
+        ));
     }
 
     for name in package.rhai_scripts.keys() {
-        validate_name(name)?;
+        validate_name(name).map_err(package::RhaiRejection::Name)?;
     }
 
     Ok(())

@@ -16,14 +16,27 @@ pub enum ChunkRejection {
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
+pub enum NameRejection {
+    Null,
+    InvalidLen,
+    Invalid { name: String, reason: String },
+}
+
+#[non_exhaustive]
+#[derive(Debug, PartialEq)]
 pub enum RhaiRejection {
+    Name(NameRejection),
     NullPayload,
-    NullName,
-    InvalidNameLen,
     InvalidByteName { name: Vec<u8>, reason: String },
-    InvalidName { reason: String },
     InvalidScript { name: String, reason: String },
     DuplicateName { found: String },
+}
+
+#[non_exhaustive]
+#[derive(Debug, PartialEq)]
+pub enum EntryRejection {
+    Name(NameRejection),
+    None { expected: String },
 }
 
 #[non_exhaustive]
@@ -37,29 +50,37 @@ pub enum PackageRejection {
     InvalidSizeFile { declared: u32, available: usize },
     TooBigFile { declared: usize },
 
-    ChunkRejection(ChunkRejection),
+    Chunk(ChunkRejection),
 
     NoMetaChunk,
     MultipleMetaChunkFound,
-    NoEntryPoint { expected: String },
+
+    // entry point related rejection
+    Entry(EntryRejection),
 
     // metadata related rejections
     InvalidDeserMetadata(toml::de::Error),
     InvalidSerMetadata(toml::ser::Error),
 
     // rhai related rejections
-    RhaiRejection(RhaiRejection),
+    Rhai(RhaiRejection),
 }
 
 impl From<ChunkRejection> for PackageRejection {
     fn from(value: ChunkRejection) -> Self {
-        PackageRejection::ChunkRejection(value)
+        PackageRejection::Chunk(value)
     }
 }
 
 impl From<RhaiRejection> for PackageRejection {
     fn from(value: RhaiRejection) -> Self {
-        PackageRejection::RhaiRejection(value)
+        PackageRejection::Rhai(value)
+    }
+}
+
+impl From<EntryRejection> for PackageRejection {
+    fn from(value: EntryRejection) -> Self {
+        PackageRejection::Entry(value)
     }
 }
 

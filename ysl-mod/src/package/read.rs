@@ -125,14 +125,17 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Rhai
     };
 
     if name_len == 0 {
-        return Err(package::RhaiRejection::NullName);
+        return Err(package::RhaiRejection::Name(package::NameRejection::Null));
     }
 
     let Some((name_bytes, rest)) = rest.split_at_checked(name_len as usize) else {
-        return Err(package::RhaiRejection::InvalidNameLen);
+        return Err(package::RhaiRejection::Name(
+            package::NameRejection::InvalidLen,
+        ));
     };
     let name = String::from_utf8(name_bytes.to_vec()).map_err(|e| {
-        package::RhaiRejection::InvalidName {
+        package::RhaiRejection::InvalidByteName {
+            name: name_bytes.to_vec(),
             reason: format!("{e:#}"),
         }
     })?;
@@ -192,7 +195,7 @@ pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection>
                 vacant_entry.insert(data);
             }
             Entry::Occupied(occupied_entry) => {
-                return Err(package::PackageRejection::RhaiRejection(
+                return Err(package::PackageRejection::Rhai(
                     package::RhaiRejection::DuplicateName {
                         found: occupied_entry.key().to_owned(),
                     },
