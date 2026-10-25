@@ -43,15 +43,6 @@ fn validate_name(name: &str) -> Result<(), package::NameRejection> {
     }
 }
 
-fn validate_size_payload(payload_len: usize) -> Result<(), package::ChunkRejection> {
-    if payload_len > package::MAXIMUM_PAYLOAD_SIZE {
-        return Err(package::ChunkRejection::TooBigPayload {
-            declared: payload_len,
-        });
-    }
-    Ok(())
-}
-
 pub fn validate_package(package: &package::Package) -> Result<(), package::PackageRejection> {
     let expected_entry_point = package.entry();
     validate_name(expected_entry_point).map_err(package::EntryRejection::Name)?;
@@ -63,11 +54,17 @@ pub fn validate_package(package: &package::Package) -> Result<(), package::Packa
         ));
     }
 
-    for (name, data) in package.rhai_scripts.iter() {
+    for name in package.rhai_scripts.keys() {
         validate_name(name).map_err(package::RhaiRejection::Name)?;
-        validate_size_payload(1 + name.len() + data.len())?;
     }
 
+    Ok(())
+}
+
+pub fn validate_size_chunk(c: &package::Chunk) -> Result<(), package::ChunkRejection> {
+    if c.size() > package::MAXIMUM_PAYLOAD_SIZE {
+        return Err(package::ChunkRejection::TooBigPayload { declared: c.size() });
+    }
     Ok(())
 }
 

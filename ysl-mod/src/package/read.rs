@@ -68,19 +68,14 @@ pub fn parse_chunk<'a>(
             available: rest.len(),
         });
     };
-    if payload.len() > package::MAXIMUM_PAYLOAD_SIZE {
-        return Err(package::ChunkRejection::TooBigPayload {
-            declared: payload.len(),
-        });
-    }
 
-    Ok((
-        package::Chunk {
-            four_cc: chunk_header.four_cc,
-            payload,
-        },
-        rest,
-    ))
+    let chunk = package::Chunk {
+        four_cc: chunk_header.four_cc,
+        payload,
+    };
+    package::validate::validate_size_chunk(&chunk)?;
+
+    Ok((chunk, rest))
 }
 
 fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::RhaiRejection> {

@@ -126,7 +126,7 @@ const CURRENT_FORMAT_VERSION: u16 = 1;
 
 const KNOWN_MASK: u16 = 0;
 
-const MAXIMUM_FILE_SIZE: usize = 256 * 1_024; // 1 MiB
+const MAXIMUM_FILE_SIZE: usize = 256 * 1_024; // 256 kiB
 const MAXIMUM_PAYLOAD_SIZE: usize = 10 * 1_024; // 10 kiB
 
 #[repr(C)]
@@ -162,6 +162,12 @@ impl Header {
 pub struct Chunk<'a> {
     pub four_cc: [u8; 4],
     pub payload: &'a [u8],
+}
+
+impl<'a> Chunk<'a> {
+    pub fn size(&self) -> usize {
+        self.four_cc.len() + self.payload.len()
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]

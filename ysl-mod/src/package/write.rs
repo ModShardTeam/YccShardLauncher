@@ -15,13 +15,16 @@ fn encode_rhai_payload(name: &str, data: &str) -> Result<Vec<u8>, package::RhaiR
 }
 
 // TODO: use struct first to ensure size of each element
-pub fn write_chunk(c: &package::ChunkBuf) -> Vec<u8> {
-    [
+pub fn write_chunk(c: &package::ChunkBuf) -> Result<Vec<u8>, package::ChunkRejection> {
+    Ok([
         &c.four_cc as &[u8],
-        &(c.payload.len() as u32).to_le_bytes(),
+        &(u32::try_from(c.payload.len()).map_err(|_| package::ChunkRejection::TooBigPayload {
+            declared: c.payload.len(),
+        })?)
+        .to_le_bytes(),
         &c.payload,
     ]
-    .concat()
+    .concat())
 }
 
 pub fn write(package: &package::Package, flags: u16) -> Result<Vec<u8>, package::PackageRejection> {
@@ -37,14 +40,17 @@ pub fn write(package: &package::Package, flags: u16) -> Result<Vec<u8>, package:
         four_cc: package::FourCC::Metadata.into(),
         payload: meta_payload.as_bytes().to_vec(),
     };
+    package::validate::validate_size_chunk(&(&meta_chunk).into())?;
 
     let mut chunks: Vec<package::ChunkBuf> = vec![meta_chunk];
 
     for (n, d) in &package.rhai_scripts {
-        chunks.push(package::ChunkBuf {
+        let rhai_chunk = package::ChunkBuf {
             four_cc: package::FourCC::RhaiScript.into(),
             payload: encode_rhai_payload(n, d)?,
-        });
+        };
+        package::validate::validate_size_chunk(&(&rhai_chunk).into())?;
+        chunks.push(rhai_chunk);
     }
 
     let mut header = [
@@ -54,7 +60,13 @@ pub fn write(package: &package::Package, flags: u16) -> Result<Vec<u8>, package:
     ]
     .concat();
 
-    let payload = chunks.iter().flat_map(write_chunk).collect::<Vec<_>>();
+    let payload: Vec<u8> = chunks
+        .iter()
+        .map(write_chunk)
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect();
 
     header.extend_from_slice(&(payload.len() as u32).to_le_bytes());
     let bytes = [header, payload].concat();

@@ -230,16 +230,28 @@ fn rhai_name_not_u8() {
 fn rhai_bigger_than_10kib() {
     let package_to_write = common::PackageBuilder::new()
         .clear_rhai()
-        .add_rhai("mod", &"a".repeat(10 * 1024))
+        .add_rhai("mod", &"a".repeat(10 * 1024 - 7))
         .build();
 
     let rej = package::write::write(&package_to_write, 0).unwrap_err();
     assert_eq!(
         rej,
         package::PackageRejection::Chunk(package::ChunkRejection::TooBigPayload {
-            declared: 10 * 1024 + 4
+            declared: 10 * 1024 + 1
         })
     )
+}
+
+#[test]
+fn rhai_maximum_size() {
+    let package_to_write = common::PackageBuilder::new()
+        .clear_rhai()
+        .add_rhai("mod", &"a".repeat(10 * 1024 - 8))
+        .build();
+
+    let bytes = package::write::write(&package_to_write, 0).expect("valid operation");
+    let read_package = package::read::read(&bytes).expect("valid operation");
+    assert_eq!(package_to_write, read_package)
 }
 
 #[test]
@@ -255,5 +267,20 @@ fn package_too_big() {
     assert_eq!(
         rej,
         package::PackageRejection::TooBigFile { declared: 923191 }
+    )
+}
+
+#[test]
+fn meta_too_big() {
+    let package_to_write = common::PackageBuilder::new()
+        .short_desc(&"a".repeat(11 * 1024))
+        .build();
+
+    let rej = package::write::write(&package_to_write, 0).unwrap_err();
+    assert_eq!(
+        rej,
+        package::PackageRejection::Chunk(package::ChunkRejection::TooBigPayload {
+            declared: 11407
+        })
     )
 }
