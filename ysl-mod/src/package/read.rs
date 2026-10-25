@@ -83,42 +83,6 @@ pub fn parse_chunk<'a>(
     ))
 }
 
-pub fn parse_header(bytes: &[u8]) -> Result<(package::Header, &[u8]), package::PackageRejection> {
-    let Some((header, rest)) = package::Header::read(bytes) else {
-        return Err(package::PackageRejection::NotEnoughDataHeader {
-            needed: size_of::<package::Header>(),
-            available: bytes.len(),
-        });
-    };
-
-    if header.magic != *package::YFF_MAGIC {
-        return Err(package::PackageRejection::BadMagic {
-            found: header.magic,
-        });
-    }
-
-    let version = u16::from_le_bytes(header.format_version);
-    if !(package::OLDEST_SUPPORTED_VERSION..=package::CURRENT_FORMAT_VERSION).contains(&version) {
-        return Err(package::PackageRejection::UnsupportedVersion { found: version });
-    }
-
-    let flags = u16::from_le_bytes(header.flags);
-    if (flags & !package::KNOWN_MASK) != 0 {
-        return Err(package::PackageRejection::UnknownBits { found: flags });
-    }
-
-    let len: u32 = u32::from_le_bytes(header.len);
-    // exclude the first 12 bytes, RIFF-style
-    if rest.len() != len as usize {
-        return Err(package::PackageRejection::InvalidSizeFile {
-            declared: len,
-            available: rest.len(),
-        });
-    }
-
-    Ok((header, rest))
-}
-
 fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::RhaiRejection> {
     let Some((&name_len, rest)) = payload.split_first() else {
         return Err(package::RhaiRejection::NullPayload);
@@ -156,9 +120,13 @@ pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection>
         });
     }
 
-    let (raw_header, raw_chunks) = parse_header(bytes)?;
-    let format_version: u16 = u16::from_le_bytes(raw_header.format_version);
-    let flags: u16 = u16::from_le_bytes(raw_header.flags);
+    let Some((raw_header, raw_chunks)) = package::Header::read(bytes) else {
+        return Err(package::PackageRejection::NotEnoughDataHeader {
+            needed: size_of::<package::Header>(),
+            available: bytes.len(),
+        });
+    };
+    package::validate::validate_header_values(&raw_header, raw_chunks.len())?;
 
     let mut metadata_filter = ChunkIter::from(raw_chunks).filter(|r| {
         r.as_ref().is_ok_and(|c| {
@@ -205,6 +173,6 @@ pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection>
     }
 
     let package = package::Package { meta, rhai_scripts };
-    package::validate::validate(&package)?;
+    package::validate::validate_package(&package)?;
     Ok(package)
 }

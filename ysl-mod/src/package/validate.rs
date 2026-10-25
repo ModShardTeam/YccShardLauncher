@@ -40,7 +40,7 @@ fn validate_name(name: &str) -> Result<(), package::NameRejection> {
     }
 }
 
-pub fn validate(package: &package::Package) -> Result<(), package::PackageRejection> {
+pub fn validate_package(package: &package::Package) -> Result<(), package::PackageRejection> {
     let expected_entry_point = package.entry();
     validate_name(expected_entry_point).map_err(package::EntryRejection::Name)?;
     if !package.rhai_scripts.contains_key(expected_entry_point) {
@@ -53,6 +53,44 @@ pub fn validate(package: &package::Package) -> Result<(), package::PackageReject
 
     for name in package.rhai_scripts.keys() {
         validate_name(name).map_err(package::RhaiRejection::Name)?;
+    }
+
+    Ok(())
+}
+
+pub fn validate_flags(flags: &u16) -> Result<(), package::PackageRejection> {
+    if (flags & !package::KNOWN_MASK) != 0 {
+        return Err(package::PackageRejection::UnknownBits { found: *flags });
+    }
+
+    Ok(())
+}
+
+pub fn validate_header_values(
+    header: &package::Header,
+    len_raw_chunks: usize,
+) -> Result<(), package::PackageRejection> {
+    if header.magic != *package::YFF_MAGIC {
+        return Err(package::PackageRejection::BadMagic {
+            found: header.magic,
+        });
+    }
+
+    let version = u16::from_le_bytes(header.format_version);
+    if !(package::OLDEST_SUPPORTED_VERSION..=package::CURRENT_FORMAT_VERSION).contains(&version) {
+        return Err(package::PackageRejection::UnsupportedVersion { found: version });
+    }
+
+    let flags = u16::from_le_bytes(header.flags);
+    validate_flags(&flags)?;
+
+    let len: u32 = u32::from_le_bytes(header.len);
+    // exclude the first 12 bytes, RIFF-style
+    if len_raw_chunks != len as usize {
+        return Err(package::PackageRejection::InvalidSizeFile {
+            declared: len,
+            available: len_raw_chunks,
+        });
     }
 
     Ok(())

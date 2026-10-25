@@ -15,7 +15,8 @@ pub fn write_chunk(c: &package::ChunkBuf) -> Vec<u8> {
 }
 
 pub fn write(package: &package::Package, flags: u16) -> Result<Vec<u8>, package::PackageRejection> {
-    package::validate::validate(package)?;
+    package::validate::validate_flags(&flags)?;
+    package::validate::validate_package(package)?;
 
     let meta_payload = match toml::to_string(&package.meta) {
         Err(e) => return Err(package::PackageRejection::InvalidSerMetadata(e)),

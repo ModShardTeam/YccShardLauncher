@@ -21,6 +21,14 @@ fn reversible_valid_package_to_bytes() {
 }
 
 #[test]
+fn invalid_flags() {
+    let package_to_write = common::PackageBuilder::new().build();
+
+    let rej = package::write::write(&package_to_write, 190).unwrap_err();
+    assert_eq!(rej, package::PackageRejection::UnknownBits { found: 190 })
+}
+
+#[test]
 fn non_ascii_declared_entry_point() {
     let package_to_write = common::PackageBuilder::new()
         .entry_point("moš")

@@ -203,13 +203,6 @@ impl<'a> From<&'a ChunkBuf> for Chunk<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
-pub struct File<'a> {
-    pub format_version: u16,
-    pub flags: u16,
-    pub chunks: Vec<Chunk<'a>>,
-}
-
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
