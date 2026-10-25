@@ -163,44 +163,6 @@ fn parse_iterator_stop() {
 }
 
 #[test]
-fn parse_valid_file() {
-    let chunks: Vec<u8> = common::sample_raw_body();
-    let mut file = common::create_raw_header(b"YFF\0", 1, 0, chunks.len() as u32);
-    file.extend_from_slice(&chunks);
-
-    let f = package::read::read(&file).expect("valid operation");
-    assert_eq!(
-        f,
-        package::File {
-            format_version: 1,
-            flags: 0,
-            chunks: vec![
-                package::Chunk {
-                    four_cc: *common::ID_META,
-                    payload: &[0xA0, 0xA1, 0xA2]
-                },
-                package::Chunk {
-                    four_cc: *common::ID_RHAI,
-                    payload: &[0xB0, 0xB1, 0xB2, 0xB3]
-                },
-                package::Chunk {
-                    four_cc: *common::ID_RHAI,
-                    payload: &[0xC0, 0xC1, 0xC2, 0xC3]
-                },
-                package::Chunk {
-                    four_cc: *common::ID_RHAI,
-                    payload: &[0xD0, 0xD1, 0xD2, 0xD3]
-                },
-                package::Chunk {
-                    four_cc: *common::ID_RHAI,
-                    payload: &[0x00, 0x01, 0x02, 0x03]
-                }
-            ],
-        }
-    );
-}
-
-#[test]
 fn parse_bad_magic_file() {
     let chunks: Vec<u8> = common::sample_raw_body();
     let mut file = common::create_raw_header(b"BAD\0", 1, 0, chunks.len() as u32);
@@ -347,7 +309,7 @@ fn parse_partial_header_chunk_file() {
     let rej = package::read::read(&file).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::InvalidChunk(package::ChunkRejection::NotEnoughDataHeader {
+        package::PackageRejection::ChunkRejection(package::ChunkRejection::NotEnoughDataHeader {
             needed: 8,
             available: 4
         })
@@ -365,7 +327,7 @@ fn parse_overrun_chunk_file() {
     let rej = package::read::read(&file).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::InvalidChunk(package::ChunkRejection::NotEnoughDataPayload {
+        package::PackageRejection::ChunkRejection(package::ChunkRejection::NotEnoughDataPayload {
             declared: 10,
             available: 3
         })

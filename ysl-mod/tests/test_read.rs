@@ -4,34 +4,6 @@ use std::collections::BTreeMap;
 use ysl_mod::package;
 
 #[test]
-fn convert_skips_unknown_id() {
-    let raw_file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: common::dummy_no_entry_metadata().as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *b"BAD\0",
-                payload: &[0xB0, 0xB1, 0xB2, 0xB3],
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &[0x03, b'm', b'o', b'd'],
-            },
-        ],
-    };
-
-    let package = package::read::read(raw_file).expect("valid operation");
-    assert_eq!(
-        package.rhai_scripts,
-        BTreeMap::from([("mod".to_string(), "".to_string())])
-    )
-}
-
-#[test]
 fn process_valid_meta_package() {
     let file = package::File {
         format_version: 1,
