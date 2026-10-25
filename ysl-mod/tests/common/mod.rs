@@ -6,38 +6,39 @@ use ysl_mod::package;
 pub const ID_META: &[u8; 4] = b"META";
 pub const ID_RHAI: &[u8; 4] = b"RHAI";
 
-pub fn dummy_metadata(entry: &str) -> String {
+pub fn dummy_metadata(entry: &str, version: &str, req: &str) -> String {
     format!(
         r#"mod_name = "test_mod"
-version = "0.1.0"
+version = {version:?}
 engine = "rhai"
-entry_point = "{}"
+entry_point = {entry:?}
 game_version = "1.0.0"
 author_name = "test_author"
 short_desc = "this is a test"
 
 [dependencies]
-other_test = "=1.0"
-yet_another_test = ">0.2"
-"#,
-        entry
-    )
-}
-
-pub fn dummy_no_entry_metadata() -> &'static str {
-    r#"
-mod_name = "test_mod"
-version = "0.1.0"
-engine = "rhai"
-game_version = "1.0.0"
-author_name = "test_author"
-short_desc = "this is a test"
-
-[dependencies]
-other_test = "=1.0"
+other_test = {req:?}
 yet_another_test = ">0.2"
 
 "#
+    )
+}
+
+pub fn dummy_no_entry_metadata(version: &str, req: &str) -> String {
+    format!(
+        r#"mod_name = "test_mod"
+version = {version:?}
+engine = "rhai"
+game_version = "1.0.0"
+author_name = "test_author"
+short_desc = "this is a test"
+
+[dependencies]
+other_test = {req:?}
+yet_another_test = ">0.2"
+
+"#
+    )
 }
 
 pub fn dummy_rhai_payload(name: &[u8]) -> Vec<u8> {
@@ -268,10 +269,10 @@ impl BytesBuilder {
         self
     }
 
-    pub fn add_meta(&mut self, entry: Option<&str>) -> &mut Self {
+    pub fn add_meta(&mut self, entry: Option<&str>, version: &str, req: &str) -> &mut Self {
         let meta_string = match entry {
-            None => dummy_no_entry_metadata(),
-            Some(e) => &dummy_metadata(e),
+            None => dummy_no_entry_metadata(version, req),
+            Some(e) => dummy_metadata(e, version, req),
         };
         self.chunks.extend(
             [

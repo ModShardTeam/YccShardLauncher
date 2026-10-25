@@ -1,5 +1,5 @@
 mod common;
-use std::collections::BTreeMap;
+use std::{assert_matches, collections::BTreeMap};
 
 use ysl_mod::package;
 
@@ -111,7 +111,7 @@ fn parse_too_small_len_file() {
 fn unknown_chunk_id_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(None)
+        .add_meta(None, "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_arbitrary_chunk(
             &common::ChunkBuilder::new()
@@ -133,7 +133,7 @@ fn unknown_chunk_id_package() {
         package::Package {
             meta: package::Metadata {
                 mod_name: "test_mod".to_string(),
-                version: semver::Version::parse("0.1.0").expect("valid operation"),
+                version: semver::Version::new(1, 0, 0),
                 engine: "rhai".to_string(),
                 entry_point: None,
                 game_version: "1.0.0".to_string(),
@@ -175,7 +175,7 @@ fn unknown_chunk_id_package() {
 fn partial_header_chunk_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(None)
+        .add_meta(None, "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_arbitrary_chunk(
             &common::ChunkBuilder::new()
@@ -199,7 +199,7 @@ fn partial_header_chunk_package() {
 fn overrun_chunk_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(None)
+        .add_meta(None, "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_arbitrary_chunk(
             &common::ChunkBuilder::new()
@@ -224,7 +224,7 @@ fn overrun_chunk_package() {
 fn valid_meta_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("mod"))
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .build();
 
@@ -233,7 +233,7 @@ fn valid_meta_package() {
         package.meta,
         package::Metadata {
             mod_name: "test_mod".to_string(),
-            version: semver::Version::new(0, 1, 0),
+            version: semver::Version::new(1, 0, 0),
             engine: "rhai".to_string(),
             entry_point: Some("mod".to_string()),
             game_version: "1.0.0".to_string(),
@@ -288,8 +288,8 @@ fn no_meta_package() {
 fn two_metas_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("mod"))
-        .add_meta(Some("mod"))
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .build();
 
@@ -301,7 +301,7 @@ fn two_metas_package() {
 fn valid_rhai_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("ab_5c"))
+        .add_meta(Some("ab_5c"), "1.0.0", "=1.0")
         .add_default_rhai("ab_5c")
         .build();
 
@@ -310,7 +310,7 @@ fn valid_rhai_package() {
         package.meta,
         package::Metadata {
             mod_name: "test_mod".to_string(),
-            version: semver::Version::new(0, 1, 0),
+            version: semver::Version::new(1, 0, 0),
             engine: "rhai".to_string(),
             entry_point: Some("ab_5c".to_string()),
             game_version: "1.0.0".to_string(),
@@ -354,7 +354,7 @@ fn valid_rhai_package() {
 fn null_rhai_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("mod"))
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("")
         .build();
 
@@ -369,7 +369,7 @@ fn null_rhai_name_package() {
 fn reserved_device_rhai_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("mod"))
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_default_rhai("con")
         .build();
@@ -390,7 +390,7 @@ fn reserved_device_rhai_name_package() {
 fn invalid_char_rhai_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("mod"))
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("y;u")
         .add_default_rhai("mod")
         .build();
@@ -411,7 +411,7 @@ fn invalid_char_rhai_name_package() {
 fn uppercase_char_rhai_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("mod"))
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_default_rhai("YUU")
         .build();
@@ -432,7 +432,7 @@ fn uppercase_char_rhai_name_package() {
 fn empty_entry_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some(""))
+        .add_meta(Some(""), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .build();
 
@@ -450,7 +450,7 @@ fn empty_entry_name_package() {
 fn invalid_entry_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("moš"))
+        .add_meta(Some("moš"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .build();
 
@@ -470,7 +470,7 @@ fn invalid_entry_name_package() {
 fn missing_entry_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("ab_5c"))
+        .add_meta(Some("ab_5c"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .build();
 
@@ -487,7 +487,7 @@ fn missing_entry_name_package() {
 fn uppercase_entry_name_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("AB_5C"))
+        .add_meta(Some("AB_5C"), "1.0.0", "=1.0")
         .add_default_rhai("ab_5c")
         .build();
 
@@ -507,7 +507,7 @@ fn uppercase_entry_name_package() {
 fn neither_entry_name_nor_mod_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(None)
+        .add_meta(None, "1.0.0", "=1.0")
         .add_default_rhai("ab_5c")
         .build();
 
@@ -524,7 +524,7 @@ fn neither_entry_name_nor_mod_package() {
 fn duplicate_names_rhai_script_package() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("mod"))
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_default_rhai("mod")
         .build();
@@ -539,10 +539,10 @@ fn duplicate_names_rhai_script_package() {
 }
 
 #[test]
-fn unsupported_ids() {
+fn unsupported_lua() {
     let bytes = common::BytesBuilder::new()
         .format_version(1)
-        .add_meta(Some("mod"))
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_arbitrary_chunk(&common::ChunkBuilder::new().id(b"LUA\0").build())
         .build();
@@ -553,5 +553,123 @@ fn unsupported_ids() {
         package::PackageRejection::KnownButUnsupportedId {
             found: package::FourCC::LuaScript,
         }
+    )
+}
+
+#[test]
+fn unsupported_png() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"), "1.0.0", "=1.0")
+        .add_default_rhai("mod")
+        .add_arbitrary_chunk(&common::ChunkBuilder::new().id(b"PNG\0").build())
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+    assert_eq!(
+        rej,
+        package::PackageRejection::KnownButUnsupportedId {
+            found: package::FourCC::Png,
+        }
+    )
+}
+
+#[test]
+fn invalid_version() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"), "1.0", "=1.0")
+        .add_default_rhai("mod")
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+
+    assert_matches!(rej, package::PackageRejection::InvalidDeserMetadata(_));
+    let package::PackageRejection::InvalidDeserMetadata(deser) = rej else {
+        unreachable!()
+    };
+    assert_eq!(
+        deser.message(),
+        "unexpected end of input while parsing minor version number"
+    )
+}
+
+#[test]
+fn invalid_req() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"), "1.0.0", "=>1")
+        .add_default_rhai("mod")
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+
+    assert_matches!(rej, package::PackageRejection::InvalidDeserMetadata(_));
+    let package::PackageRejection::InvalidDeserMetadata(deser) = rej else {
+        unreachable!()
+    };
+    assert_eq!(
+        deser.message(),
+        "unexpected character '>' while parsing major version number"
+    )
+}
+
+#[test]
+fn missing_required_fields() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_arbitrary_chunk(
+            &common::ChunkBuilder::new()
+                .id(common::ID_META)
+                .payload(b"mod_name = 'test_mod'")
+                .build(),
+        )
+        .add_default_rhai("mod")
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+
+    assert_matches!(rej, package::PackageRejection::InvalidDeserMetadata(_));
+    let package::PackageRejection::InvalidDeserMetadata(deser) = rej else {
+        unreachable!()
+    };
+    assert_eq!(deser.message(), "missing field `version`")
+}
+
+#[test]
+fn unknown_field() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_arbitrary_chunk(
+            &common::ChunkBuilder::new()
+                .id(common::ID_META)
+                .payload(
+                    br#"mod_name = "test_mod"
+version = "1.0.0"
+engine = "rhai"
+game_version = "1.0.0"
+author_name = "test_author"
+short_desc = "this is a test"
+extrafield = "test"
+
+[dependencies]
+yet_another_test = ">0.2"
+
+"#,
+                )
+                .build(),
+        )
+        .add_default_rhai("mod")
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+
+    assert_matches!(rej, package::PackageRejection::InvalidDeserMetadata(_));
+    let package::PackageRejection::InvalidDeserMetadata(deser) = rej else {
+        unreachable!()
+    };
+    assert_eq!(
+        deser.message(),
+        "unknown field `extrafield`, expected one of `mod_name`, `version`, `engine`, `entry_point`, `game_version`, `author_name`, `short_desc`, `dependencies`"
     )
 }
