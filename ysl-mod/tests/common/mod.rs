@@ -219,7 +219,7 @@ impl ChunkBuilder {
                 ]
                 .concat()
             }
-            ChunkLen::Set(ref l) => [&self.id as &[u8], &l, &self.payload as &[u8]].concat(),
+            ChunkLen::Set(ref l) => [&self.id as &[u8], l, &self.payload as &[u8]].concat(),
         }
     }
 }

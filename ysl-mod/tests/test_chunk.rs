@@ -31,7 +31,7 @@ fn parse_not_enough_data_for_header_fourcc() {
 fn parse_not_enough_data_for_header_len() {
     let input: Vec<u8> = common::ChunkBuilder::new()
         .id(common::ID_META)
-        .arbitrary_len(&vec![0x00, 0x01, 0x02])
+        .arbitrary_len(&[0x00, 0x01, 0x02])
         .build();
     let rej = package::read::parse_chunk(&input).unwrap_err();
     assert_eq!(

@@ -113,15 +113,6 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Rhai
     Ok((name, data))
 }
 
-fn chunk_filter<'a>(
-    chunks: &'a [package::Chunk],
-    four_cc: package::FourCC,
-) -> impl Iterator<Item = &'a package::Chunk<'a>> {
-    chunks.iter().filter(move |c| {
-        c.four_cc == <package::FourCC as std::convert::Into<[u8; 4]>>::into(four_cc)
-    })
-}
-
 pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection> {
     if bytes.len() >= package::MAXIMUM_FILE_SIZE {
         return Err(package::PackageRejection::TooBigFile {
@@ -138,53 +129,46 @@ pub fn read(bytes: &[u8]) -> Result<package::Package, package::PackageRejection>
     package::validate::validate_header_values(&raw_header, raw_chunks.len())?;
     let chunks = ChunkIter::from(raw_chunks).collect::<Result<Vec<_>, _>>()?;
 
-    // read meta
-    let mut metadata_filter = chunk_filter(&chunks, package::FourCC::Metadata);
+    let mut metadata: Option<&package::Chunk> = None;
+    let mut rhai_scripts: BTreeMap<String, String> = BTreeMap::new();
 
-    let Some(meta_chunk) = metadata_filter.next() else {
+    // read all chunks
+    for c in &chunks {
+        match c.four_cc.try_into() {
+            Ok(package::FourCC::Metadata) => match metadata {
+                None => metadata = Some(c),
+                Some(_) => return Err(package::PackageRejection::MultipleMetaChunkFound),
+            },
+            Ok(package::FourCC::RhaiScript) => {
+                let (name, data) = decode_rhai_payload(c.payload)?;
+                match rhai_scripts.entry(name) {
+                    Entry::Vacant(vacant_entry) => {
+                        vacant_entry.insert(data);
+                    }
+                    Entry::Occupied(occupied_entry) => {
+                        return Err(package::PackageRejection::Rhai(
+                            package::RhaiRejection::DuplicateName {
+                                found: occupied_entry.key().to_owned(),
+                            },
+                        ));
+                    }
+                }
+            }
+            Ok(k @ (package::FourCC::LuaScript | package::FourCC::Png)) => {
+                return Err(package::PackageRejection::KnownButUnsupportedId { found: k });
+            }
+            Err(_unknown) => {} // totally unknown ids are skipped
+        }
+    }
+
+    let Some(meta_chunk) = metadata else {
         return Err(package::PackageRejection::NoMetaChunk);
     };
-    if metadata_filter.next().is_some() {
-        return Err(package::PackageRejection::MultipleMetaChunkFound);
-    }
+
     let meta: package::Metadata = match toml::from_slice(meta_chunk.payload) {
         Err(e) => return Err(package::PackageRejection::InvalidDeserMetadata(e)),
         Ok(meta) => meta,
     };
-
-    // read rhai
-    let mut rhai_scripts: BTreeMap<String, String> = BTreeMap::new();
-    for c in chunk_filter(&chunks, package::FourCC::RhaiScript) {
-        let (name, data) = decode_rhai_payload(c.payload)?;
-        match rhai_scripts.entry(name) {
-            Entry::Vacant(vacant_entry) => {
-                vacant_entry.insert(data);
-            }
-            Entry::Occupied(occupied_entry) => {
-                return Err(package::PackageRejection::Rhai(
-                    package::RhaiRejection::DuplicateName {
-                        found: occupied_entry.key().to_owned(),
-                    },
-                ));
-            }
-        }
-    }
-
-    // unsupported
-    if chunk_filter(&chunks, package::FourCC::LuaScript)
-        .next()
-        .is_some()
-    {
-        return Err(package::PackageRejection::KnownButUnsupportedId {
-            found: package::FourCC::LuaScript,
-        });
-    }
-
-    if chunk_filter(&chunks, package::FourCC::Png).next().is_some() {
-        return Err(package::PackageRejection::KnownButUnsupportedId {
-            found: package::FourCC::Png,
-        });
-    }
 
     let package = package::Package { meta, rhai_scripts };
     package::validate::validate_package(&package)?;
