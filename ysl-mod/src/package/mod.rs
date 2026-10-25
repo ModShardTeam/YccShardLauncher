@@ -118,32 +118,6 @@ impl From<FourCC> for [u8; 4] {
     }
 }
 
-fn entry_point_deser<'de, D>(deserializer: D) -> Result<Option<String>, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    let o: Option<String> = Option::deserialize(deserializer)?;
-
-    match o {
-        Some(s) => {
-            let lower_s = s.to_ascii_lowercase();
-            if lower_s.is_empty() {
-                return Err(D::Error::custom("empty entry point"));
-            }
-            if let Some(c) = lower_s
-                .chars()
-                .find(|&c| !(c.is_ascii() && validate::is_valid_name_byte(c as u8)))
-            {
-                return Err(D::Error::custom(format!(
-                    "Invalid character {c:?} found in entry_name"
-                )));
-            }
-            Ok(Some(lower_s))
-        }
-        None => Ok(None),
-    }
-}
-
 const YFF_MAGIC: &[u8; 4] = b"YFF\0";
 const OLDEST_SUPPORTED_VERSION: u16 = 1;
 const CURRENT_FORMAT_VERSION: u16 = 1;
@@ -209,7 +183,7 @@ pub struct Metadata {
     pub mod_name: String,
     pub version: semver::Version,
     pub engine: String,
-    #[serde(default, deserialize_with = "entry_point_deser")]
+    #[serde(default)]
     pub entry_point: Option<String>,
     pub game_version: String,
     pub author_name: String,

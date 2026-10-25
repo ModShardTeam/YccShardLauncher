@@ -6,33 +6,6 @@ use ysl_mod::package;
 pub const ID_META: &[u8; 4] = b"META";
 pub const ID_RHAI: &[u8; 4] = b"RHAI";
 
-pub fn create_raw_chunk(id: &[u8; 4], len: u32, payload: &[u8]) -> Vec<u8> {
-    let mut array: Vec<u8> = vec![];
-    array.extend_from_slice(id);
-    array.extend_from_slice(&len.to_le_bytes());
-    array.extend_from_slice(payload);
-    array
-}
-
-pub fn create_raw_header(magic: &[u8; 4], format_version: u16, flags: u16, len: u32) -> Vec<u8> {
-    let mut array: Vec<u8> = vec![];
-    array.extend_from_slice(magic);
-    array.extend_from_slice(&format_version.to_le_bytes());
-    array.extend_from_slice(&flags.to_le_bytes());
-    array.extend_from_slice(&len.to_le_bytes());
-    array
-}
-
-pub fn sample_raw_body() -> Vec<u8> {
-    let mut body: Vec<u8> = vec![];
-    body.extend_from_slice(&create_raw_chunk(ID_META, 3, &[0xA0, 0xA1, 0xA2]));
-    body.extend_from_slice(&create_raw_chunk(ID_RHAI, 4, &[0xB0, 0xB1, 0xB2, 0xB3]));
-    body.extend_from_slice(&create_raw_chunk(ID_RHAI, 4, &[0xC0, 0xC1, 0xC2, 0xC3]));
-    body.extend_from_slice(&create_raw_chunk(ID_RHAI, 4, &[0xD0, 0xD1, 0xD2, 0xD3]));
-    body.extend_from_slice(&create_raw_chunk(ID_RHAI, 4, &[0x00, 0x01, 0x02, 0x03]));
-    body
-}
-
 pub fn dummy_metadata(entry: &str) -> String {
     format!(
         r#"mod_name = "test_mod"
@@ -185,5 +158,95 @@ impl PackageBuilder {
             },
             rhai_scripts: self.rhai_scripts.clone(),
         }
+    }
+}
+
+pub struct BytesBuilder {
+    magic: [u8; 4],
+    format_version: u16,
+    flags: u16,
+    len: Option<u32>,
+    chunks: Vec<u8>,
+}
+
+impl BytesBuilder {
+    pub fn new() -> Self {
+        BytesBuilder {
+            magic: *b"YFF\0",
+            format_version: 0,
+            flags: 0,
+            len: None,
+            chunks: vec![],
+        }
+    }
+
+    pub fn magic(&mut self, magic: [u8; 4]) -> &mut Self {
+        self.magic = magic;
+        self
+    }
+
+    pub fn format_version(&mut self, format_version: u16) -> &mut Self {
+        self.format_version = format_version;
+        self
+    }
+
+    pub fn flags(&mut self, flags: u16) -> &mut Self {
+        self.flags = flags;
+        self
+    }
+
+    pub fn len(&mut self, len: u32) -> &mut Self {
+        self.len = Some(len);
+        self
+    }
+
+    pub fn add_valid_chunk(&mut self, id: &[u8; 4], payload: &[u8]) -> &mut Self {
+        self.chunks
+            .extend([id, &(payload.len() as u32).to_le_bytes(), payload].concat());
+        self
+    }
+
+    pub fn add_chunk(&mut self, id: &[u8; 4], len: u32, payload: &[u8]) -> &mut Self {
+        self.chunks
+            .extend([id, &len.to_le_bytes(), payload].concat());
+        self
+    }
+
+    pub fn add_meta(&mut self, entry: Option<&str>) -> &mut Self {
+        let meta_string = match entry {
+            None => dummy_no_entry_metadata(),
+            Some(e) => &dummy_metadata(e),
+        };
+        self.chunks.extend(
+            [
+                ID_META,
+                &(meta_string.len() as u32).to_le_bytes(),
+                meta_string.as_bytes(),
+            ]
+            .concat(),
+        );
+        self
+    }
+
+    pub fn add_rhai(&mut self, name: &str) -> &mut Self {
+        let payload: &[u8] = &[
+            &(name.len() as u8).to_le_bytes(),
+            name.as_bytes(),
+            "fn load(mod) { }".as_bytes(),
+        ]
+        .concat();
+        self.chunks
+            .extend([ID_RHAI, &(payload.len() as u32).to_le_bytes(), payload].concat());
+        self
+    }
+
+    pub fn build(&self) -> Vec<u8> {
+        let mut bytes = vec![];
+        bytes.extend(self.magic);
+        bytes.extend(self.format_version.to_le_bytes());
+        bytes.extend(self.flags.to_le_bytes());
+        bytes.extend(self.len.unwrap_or(self.chunks.len() as u32).to_le_bytes());
+        bytes.extend(self.chunks.clone());
+        bytes
     }
 }

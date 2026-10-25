@@ -4,30 +4,21 @@ use std::collections::BTreeMap;
 use ysl_mod::package;
 
 #[test]
-fn process_valid_meta_package() {
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: common::dummy_no_entry_metadata().as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &[0x03, b'm', b'o', b'd'],
-            },
-        ],
-    };
+fn valid_meta_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"))
+        .add_rhai("mod")
+        .build();
 
-    let package = package::read::read(file).expect("valid operation");
+    let package = package::read::read(&bytes).expect("valid operation");
     assert_eq!(
         package.meta,
         package::Metadata {
             mod_name: "test_mod".to_string(),
             version: semver::Version::new(0, 1, 0),
             engine: "rhai".to_string(),
-            entry_point: None,
+            entry_point: Some("mod".to_string()),
             game_version: "1.0.0".to_string(),
             author_name: "test_author".to_string(),
             short_desc: Some("this is a test".to_string()),
@@ -61,68 +52,43 @@ fn process_valid_meta_package() {
     );
     assert_eq!(
         package.rhai_scripts,
-        BTreeMap::from([("mod".to_string(), "".to_string())])
+        BTreeMap::from([("mod".to_string(), "fn load(mod) { }".to_string())])
     )
 }
 
 #[test]
-fn convert_no_meta_package() {
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![package::Chunk {
-            four_cc: *common::ID_RHAI,
-            payload: &[0xC0, 0xC1, 0xC2, 0xC3],
-        }],
-    };
+fn no_meta_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_rhai("mod")
+        .build();
 
-    let rej: package::PackageRejection = package::read::read(file).unwrap_err();
+    let rej: package::PackageRejection = package::read::read(&bytes).unwrap_err();
     assert_eq!(rej, package::PackageRejection::NoMetaChunk,)
 }
 
 #[test]
-fn convert_two_metas_package() {
-    let f_binding = common::dummy_metadata("mod");
-    let s_binding = common::dummy_metadata("mod");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: f_binding.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: s_binding.as_bytes(),
-            },
-        ],
-    };
+fn two_metas_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"))
+        .add_meta(Some("mod"))
+        .add_rhai("mod")
+        .build();
 
-    let rej: package::PackageRejection = package::read::read(file).unwrap_err();
+    let rej: package::PackageRejection = package::read::read(&bytes).unwrap_err();
     assert_eq!(rej, package::PackageRejection::MultipleMetaChunkFound,)
 }
 
 #[test]
-fn process_valid_rhai_package() {
-    let meta_payload = common::dummy_metadata("ab_5c");
-    let rhai_payload = common::dummy_rhai_payload(b"ab_5c");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
+fn valid_rhai_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("ab_5c"))
+        .add_rhai("ab_5c")
+        .build();
 
-    let package = package::read::read(file).expect("valid operation");
+    let package = package::read::read(&bytes).expect("valid operation");
     assert_eq!(
         package.meta,
         package::Metadata {
@@ -168,319 +134,189 @@ fn process_valid_rhai_package() {
 }
 
 #[test]
-fn process_null_rhai_name_package() {
-    let meta_payload = common::dummy_metadata("mod");
-    let mut rhai_payload: Vec<u8> = vec![];
-    rhai_payload.push(0x00);
-    rhai_payload.push(0x00);
-    rhai_payload.extend_from_slice("fn load(mod) { }".as_bytes());
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
+fn null_rhai_name_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"))
+        .add_rhai("")
+        .build();
 
-    let rej = package::read::read(file).unwrap_err();
-    assert_eq!(rej, package::PackageRejection::RhaiNullName)
-}
-
-#[test]
-fn process_reserved_device_rhai_name_package() {
-    let meta_payload = common::dummy_metadata("mod");
-    let rhai_payload = common::dummy_rhai_payload(b"con");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
-
-    let rej = package::read::read(file).unwrap_err();
+    let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::RhaiInvalidName {
-            name: "con".to_string(),
-            reason: "Reserved device name".to_string()
-        }
+        package::PackageRejection::Rhai(package::RhaiRejection::Name(package::NameRejection::Null))
     )
 }
 
 #[test]
-fn process_invalid_char_rhai_name_package() {
-    let meta_payload = common::dummy_metadata("mod");
-    let rhai_payload = common::dummy_rhai_payload(b"y;u");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
+fn reserved_device_rhai_name_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"))
+        .add_rhai("mod")
+        .add_rhai("con")
+        .build();
 
-    let rej = package::read::read(file).unwrap_err();
+    let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::RhaiInvalidByteName {
-            name: b"y;u".to_vec(),
-            reason: "Invalid character ';' (0x3b) found in name".to_string()
-        }
+        package::PackageRejection::Rhai(package::RhaiRejection::Name(
+            package::NameRejection::Invalid {
+                name: "con".to_string(),
+                reason: "Reserved device name".to_string()
+            }
+        ))
     )
 }
 
 #[test]
-fn process_uppercase_char_rhai_name_package() {
-    let meta_payload = common::dummy_metadata("mod");
-    let rhai_payload = common::dummy_rhai_payload(b"YUU");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
+fn invalid_char_rhai_name_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"))
+        .add_rhai("y;u")
+        .add_rhai("mod")
+        .build();
 
-    let rej = package::read::read(file).unwrap_err();
+    let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::RhaiInvalidByteName {
-            name: b"YUU".to_vec(),
-            reason: "Invalid character 'Y' (0x59) found in name".to_string()
-        }
+        package::PackageRejection::Rhai(package::RhaiRejection::Name(
+            package::NameRejection::Invalid {
+                name: "y;u".to_string(),
+                reason: "Invalid character ';' found".to_string()
+            }
+        ))
     )
 }
 
 #[test]
-fn process_empty_entry_name_package() {
-    let meta_payload = common::dummy_metadata("");
-    let rhai_payload = common::dummy_rhai_payload(b"mod");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
+fn uppercase_char_rhai_name_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"))
+        .add_rhai("mod")
+        .add_rhai("YUU")
+        .build();
 
-    let rej = package::read::read(file).unwrap_err();
-
-    let package::PackageRejection::InvalidDeserMetadata(e) = rej else {
-        panic!("expected InvalidDeserMetadata, got {rej:?}");
-    };
-    assert_eq!(e.message(), "empty entry point")
-}
-
-#[test]
-fn process_invalid_entry_name_package() {
-    let meta_payload = common::dummy_metadata("moš");
-    let rhai_payload = common::dummy_rhai_payload(b"mod");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
-
-    let rej = package::read::read(file).unwrap_err();
-
-    let package::PackageRejection::InvalidDeserMetadata(e) = rej else {
-        panic!("expected InvalidDeserMetadata, got {rej:?}");
-    };
-    assert_eq!(e.message(), "Invalid character 'š' found in entry_name")
-}
-
-#[test]
-fn process_missing_entry_name_package() {
-    let meta_payload = common::dummy_metadata("ab_5c");
-    let rhai_payload = common::dummy_rhai_payload(b"mod");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
-
-    let rej = package::read::read(file).unwrap_err();
+    let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::NoEntryPoint {
+        package::PackageRejection::Rhai(package::RhaiRejection::Name(
+            package::NameRejection::Invalid {
+                name: "YUU".to_string(),
+                reason: "Invalid character 'Y' found".to_string()
+            }
+        ))
+    )
+}
+
+#[test]
+fn empty_entry_name_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some(""))
+        .add_rhai("mod")
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+
+    assert_eq!(
+        rej,
+        package::PackageRejection::Entry(package::EntryRejection::Name(
+            package::NameRejection::Null
+        ))
+    )
+}
+
+#[test]
+fn invalid_entry_name_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("moš"))
+        .add_rhai("mod")
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+    assert_eq!(
+        rej,
+        package::PackageRejection::Entry(package::EntryRejection::Name(
+            package::NameRejection::Invalid {
+                name: "moš".to_string(),
+                reason: "Invalid character 'š' found".to_string()
+            }
+        ))
+    )
+}
+
+#[test]
+fn missing_entry_name_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("ab_5c"))
+        .add_rhai("mod")
+        .build();
+
+    let rej = package::read::read(&bytes).unwrap_err();
+    assert_eq!(
+        rej,
+        package::PackageRejection::Entry(package::EntryRejection::None {
             expected: "ab_5c".to_string()
-        }
+        })
     )
 }
 
 #[test]
-fn process_wrong_case_entry_name_package() {
-    let meta_payload = common::dummy_metadata("AB_5C");
-    let rhai_payload = common::dummy_rhai_payload(b"ab_5c");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: meta_payload.as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
+fn uppercase_entry_name_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("AB_5C"))
+        .add_rhai("ab_5c")
+        .build();
 
-    let package = package::read::read(file).expect("valid operation");
+    let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
-        package.meta,
-        package::Metadata {
-            mod_name: "test_mod".to_string(),
-            version: semver::Version::new(0, 1, 0),
-            engine: "rhai".to_string(),
-            entry_point: Some("ab_5c".to_string()),
-            game_version: "1.0.0".to_string(),
-            author_name: "test_author".to_string(),
-            short_desc: Some("this is a test".to_string()),
-            dependencies: BTreeMap::from([
-                (
-                    "other_test".to_string(),
-                    semver::VersionReq {
-                        comparators: vec![semver::Comparator {
-                            op: semver::Op::Exact,
-                            major: 1,
-                            minor: Some(0),
-                            patch: None,
-                            pre: semver::Prerelease::EMPTY
-                        }]
-                    }
-                ),
-                (
-                    "yet_another_test".to_string(),
-                    semver::VersionReq {
-                        comparators: vec![semver::Comparator {
-                            op: semver::Op::Greater,
-                            major: 0,
-                            minor: Some(2),
-                            patch: None,
-                            pre: semver::Prerelease::EMPTY
-                        }]
-                    }
-                )
-            ]),
-        },
+        rej,
+        package::PackageRejection::Entry(package::EntryRejection::Name(
+            package::NameRejection::Invalid {
+                name: "AB_5C".to_string(),
+                reason: "Invalid character 'A' found".to_string()
+            }
+        ))
     );
-    assert_eq!(
-        package.rhai_scripts,
-        BTreeMap::from([("ab_5c".to_string(), "fn load(mod) { }".to_string(),)])
-    )
 }
 
 #[test]
-fn process_neither_entry_name_nor_mod_package() {
-    let rhai_payload = common::dummy_rhai_payload(b"ab_5c");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: common::dummy_no_entry_metadata().as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &rhai_payload,
-            },
-        ],
-    };
+fn neither_entry_name_nor_mod_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(None)
+        .add_rhai("ab_5c")
+        .build();
 
-    let rej = package::read::read(file).unwrap_err();
+    let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::NoEntryPoint {
+        package::PackageRejection::Entry(package::EntryRejection::None {
             expected: "mod".to_string()
-        }
+        })
     )
 }
 
 #[test]
-fn process_duplicate_names_rhai_script_package() {
-    let f_binding = common::dummy_rhai_payload(b"mod");
-    let s_binding = common::dummy_rhai_payload(b"mod");
-    let file = package::File {
-        format_version: 1,
-        flags: 0,
-        chunks: vec![
-            package::Chunk {
-                four_cc: *common::ID_META,
-                payload: common::dummy_no_entry_metadata().as_bytes(),
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &f_binding,
-            },
-            package::Chunk {
-                four_cc: *common::ID_RHAI,
-                payload: &s_binding,
-            },
-        ],
-    };
+fn duplicate_names_rhai_script_package() {
+    let bytes = common::BytesBuilder::new()
+        .format_version(1)
+        .add_meta(Some("mod"))
+        .add_rhai("mod")
+        .add_rhai("mod")
+        .build();
 
-    let rej = package::read::read(file).unwrap_err();
+    let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::RhaiDuplicateName {
+        package::PackageRejection::Rhai(package::RhaiRejection::DuplicateName {
             found: "mod".to_string(),
-        }
+        })
     )
 }
