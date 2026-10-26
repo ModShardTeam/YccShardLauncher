@@ -28,7 +28,7 @@ fn validate_name(name: &str) -> Result<(), package::NameRejection> {
     {
         return Err(package::NameRejection::Invalid {
             name: name.to_string(),
-            reason: format!("Invalid character {c:?} found"),
+            reason: format!("character {c:?} found"),
         });
     }
 
@@ -36,7 +36,7 @@ fn validate_name(name: &str) -> Result<(), package::NameRejection> {
     if RESERVED_WINDOWS_DEVICE_NAME.contains(&uppercase) {
         Err(package::NameRejection::Invalid {
             name: name.to_string(),
-            reason: "Reserved device name".to_string(),
+            reason: "reserved device name".to_string(),
         })
     } else {
         Ok(())

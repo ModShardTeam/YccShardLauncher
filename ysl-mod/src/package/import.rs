@@ -10,7 +10,7 @@ pub fn import(
         let Some(parent) = path.parent() else {
             return Err(package::PackageRejection::InvalidFolder {
                 folder: format!("{path:?}"),
-                reason: "Cannot find its parent".to_string(),
+                reason: "cannot find its parent".to_string(),
             });
         };
 

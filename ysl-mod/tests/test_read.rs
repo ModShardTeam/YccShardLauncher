@@ -416,7 +416,7 @@ fn reserved_device_rhai_name_package() {
         package::PackageRejection::Rhai(package::RhaiRejection::Name(
             package::NameRejection::Invalid {
                 name: "con".to_string(),
-                reason: "Reserved device name".to_string()
+                reason: "reserved device name".to_string()
             }
         ))
     )
@@ -437,7 +437,7 @@ fn invalid_char_rhai_name_package() {
         package::PackageRejection::Rhai(package::RhaiRejection::Name(
             package::NameRejection::Invalid {
                 name: "y;u".to_string(),
-                reason: "Invalid character ';' found".to_string()
+                reason: "character ';' found".to_string()
             }
         ))
     )
@@ -458,7 +458,7 @@ fn uppercase_char_rhai_name_package() {
         package::PackageRejection::Rhai(package::RhaiRejection::Name(
             package::NameRejection::Invalid {
                 name: "YUU".to_string(),
-                reason: "Invalid character 'Y' found".to_string()
+                reason: "character 'Y' found".to_string()
             }
         ))
     )
@@ -496,7 +496,7 @@ fn invalid_entry_name_package() {
         package::PackageRejection::Entry(package::EntryRejection::Name(
             package::NameRejection::Invalid {
                 name: "moš".to_string(),
-                reason: "Invalid character 'š' found".to_string()
+                reason: "character 'š' found".to_string()
             }
         ))
     )
@@ -533,7 +533,7 @@ fn uppercase_entry_name_package() {
         package::PackageRejection::Entry(package::EntryRejection::Name(
             package::NameRejection::Invalid {
                 name: "AB_5C".to_string(),
-                reason: "Invalid character 'A' found".to_string()
+                reason: "character 'A' found".to_string()
             }
         ))
     );

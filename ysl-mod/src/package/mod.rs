@@ -22,19 +22,27 @@ pub enum ChunkRejection {
 impl fmt::Display for ChunkRejection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            ChunkRejection::NotEnoughDataHeader { needed, available } => todo!(),
+            ChunkRejection::NotEnoughDataHeader { needed, available } => write!(
+                f,
+                "header is too small, it expects {needed} bytes but found {available} bytes"
+            ),
             ChunkRejection::NotEnoughDataPayload {
                 declared,
                 available,
-            } => todo!(),
+            } => write!(
+                f,
+                "payload is too small, it expects {declared} bytes but found {available} bytes"
+            ),
             ChunkRejection::TooBigChunk { declared } => write!(
                 f,
-                "Chunk declared with size {declared} exceeding maximum size of {}",
+                "chunk declared with {declared} bytes, maximum size is {} bytes",
                 package::MAXIMUM_CHUNK_SIZE
             ),
         }
     }
 }
+
+impl Error for ChunkRejection {}
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -48,21 +56,23 @@ pub enum NameRejection {
 impl fmt::Display for NameRejection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            NameRejection::Empty => write!(f, "Empty name found"),
+            NameRejection::Empty => write!(f, "name is empty"),
             NameRejection::NameLenPastEnd {
                 declared,
                 available,
             } => write!(
                 f,
-                "Name bigger than the rest of the payload, declared {declared} but only {available} available"
+                "name bigger than the rest of the chunk, declared {declared} bytes but only {available} available bytes"
             ),
             NameRejection::TooLong { name, len } => {
-                write!(f, "Name {name} longer than its declared len of {len}")
+                write!(f, "name {name:.300} is {len} bytes, maximum is 255")
             }
-            NameRejection::Invalid { name, reason } => write!(f, "Invalid {name}: {reason}"),
+            NameRejection::Invalid { name, reason } => write!(f, "invalid {name}: {reason}"),
         }
     }
 }
+
+impl Error for NameRejection {}
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -78,17 +88,21 @@ impl fmt::Display for RhaiRejection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             RhaiRejection::Name(name_rejection) => {
-                write!(f, "Invalid rhai name got: {name_rejection}")
+                write!(f, "invalid rhai name: {name_rejection}")
             }
-            RhaiRejection::NullPayload => write!(f, "Invalid rhai chunk, empty payload"),
-            RhaiRejection::InvalidByteName { name, reason } => todo!(),
-            RhaiRejection::InvalidScript { name, reason } => todo!(),
+            RhaiRejection::NullPayload => write!(f, "empty payload"),
+            RhaiRejection::InvalidByteName { name, reason } => {
+                write!(f, "script name {}: {reason}", name.escape_ascii())
+            }
+            RhaiRejection::InvalidScript { name, reason } => write!(f, "script {name}: {reason}"),
             RhaiRejection::DuplicateName { found } => {
-                write!(f, "Found multiple rhai scripts with the same name {found}")
+                write!(f, "found multiple rhai scripts with the same name {found}")
             }
         }
     }
 }
+
+impl Error for RhaiRejection {}
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -101,14 +115,16 @@ impl fmt::Display for EntryRejection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             EntryRejection::Name(name_rejection) => {
-                write!(f, "Invalid entry name got: {name_rejection}")
+                write!(f, "invalid entry name: {name_rejection}")
             }
             EntryRejection::None { expected } => {
-                write!(f, "No entry name found, expected: {expected}")
+                write!(f, "no entry name found, expected: {expected}")
             }
         }
     }
 }
+
+impl Error for EntryRejection {}
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -166,22 +182,29 @@ impl fmt::Display for PackageRejection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             PackageRejection::InvalidFolder { folder, reason } => {
-                write!(f, "Invalid destination {folder}: {reason}")
+                write!(f, "invalid destination {folder}: {reason}")
             }
             PackageRejection::NonEmptyFolder { folder } => {
-                write!(f, "Folder {folder} is not empty")
+                write!(f, "folder {folder} is not empty")
             }
             PackageRejection::NotEnoughDataHeader { needed, available } => write!(
                 f,
-                "Incomplete header, expected {needed} but {available} available"
+                "incomplete header, size is expected {needed} bytes but {available} bytes available"
             ),
-            PackageRejection::BadMagic { found } => write!(f, "BadMagic found {found:?}"),
+            PackageRejection::BadMagic { found } => {
+                write!(f, "bad magic found {}", found.escape_ascii())
+            }
             PackageRejection::UnsupportedVersion { found } => {
-                write!(f, "Unsupported Version {found}")
+                write!(
+                    f,
+                    "this mod uses format version {found}; this YSL supports {} to {}, update YSL",
+                    package::OLDEST_SUPPORTED_VERSION,
+                    package::CURRENT_FORMAT_VERSION
+                )
             }
             PackageRejection::UnknownBits { found } => write!(
                 f,
-                "Unknown flag {found}, currently supported is {}",
+                "unknown flag {found:#06x}, currently supported is {:#06x}",
                 package::KNOWN_MASK
             ),
             PackageRejection::InvalidSizeFile {
@@ -189,35 +212,35 @@ impl fmt::Display for PackageRejection {
                 available,
             } => write!(
                 f,
-                "File declared with size {declared} but found {available}"
+                "file declared with size {declared} bytes but found {available} bytes"
             ),
             PackageRejection::TooBigFile { declared } => {
                 write!(
                     f,
-                    "File declared with size {declared}, exceeding maximum {}",
+                    "file declared with size {declared} bytes, exceeding maximum {} bytes",
                     package::MAXIMUM_FILE_SIZE
                 )
             }
-            PackageRejection::Chunk(chunk_rejection) => write!(f, "In chunk {}", chunk_rejection),
-            PackageRejection::NoMetaChunk => write!(f, "No Metadata chunk found"),
-            PackageRejection::MultipleMetaChunkFound => write!(f, "Multiple Metadata chunk found"),
+            PackageRejection::Chunk(chunk_rejection) => write!(f, "in chunk {}", chunk_rejection),
+            PackageRejection::NoMetaChunk => write!(f, "no metadata chunk found"),
+            PackageRejection::MultipleMetaChunkFound => write!(f, "multiple metadata chunk found"),
             PackageRejection::KnownButUnsupportedId { found } => {
-                write!(f, "Chunk {found:?} is known but currently unsupported")
+                write!(f, "chunk {found} is known but currently unsupported")
             }
             PackageRejection::Entry(entry_rejection) => {
-                write!(f, "Invalid entry: got {entry_rejection}")
+                write!(f, "invalid entry: {entry_rejection}")
             }
             PackageRejection::InvalidDeserMetadata(error) => {
-                write!(f, "While deserializing: {error:#}")
+                write!(f, "while deserializing: {error:#}")
             }
             PackageRejection::InvalidSerMetadata(error) => {
-                write!(f, "While serializing: {error:#}")
+                write!(f, "while serializing: {error:#}")
             }
             PackageRejection::Rhai(rhai_rejection) => {
-                write!(f, "Invalid rhai script got: {rhai_rejection}")
+                write!(f, "invalid rhai script: {rhai_rejection}")
             }
             PackageRejection::ModName(name_rejection) => {
-                write!(f, "Invalid mod name: {}", name_rejection)
+                write!(f, "invalid mod name: {name_rejection}")
             }
         }
     }
@@ -255,6 +278,17 @@ impl From<FourCC> for [u8; 4] {
             FourCC::RhaiScript => b"RHAI",
             FourCC::Metadata => b"META",
             FourCC::Png => b"PNG\0",
+        }
+    }
+}
+
+impl fmt::Display for FourCC {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            FourCC::LuaScript => write!(f, "LUA"),
+            FourCC::RhaiScript => write!(f, "RHAI"),
+            FourCC::Metadata => write!(f, "META"),
+            FourCC::Png => write!(f, "PNG"),
         }
     }
 }

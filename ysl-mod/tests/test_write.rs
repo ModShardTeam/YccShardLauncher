@@ -96,7 +96,7 @@ fn non_ascii_declared_entry_point() {
         package::PackageRejection::Entry(package::EntryRejection::Name(
             package::NameRejection::Invalid {
                 name: "moš".to_string(),
-                reason: "Invalid character 'š' found".to_string()
+                reason: "character 'š' found".to_string()
             }
         ))
     )
@@ -117,7 +117,7 @@ fn uppercase_declared_entry_point() {
         package::PackageRejection::Entry(package::EntryRejection::Name(
             package::NameRejection::Invalid {
                 name: "AB_5C".to_string(),
-                reason: "Invalid character 'A' found".to_string()
+                reason: "character 'A' found".to_string()
             }
         ))
     )
@@ -179,7 +179,7 @@ fn rhai_non_ascii_name() {
         package::PackageRejection::Rhai(package::RhaiRejection::Name(
             package::NameRejection::Invalid {
                 name: "moš".to_string(),
-                reason: "Invalid character 'š' found".to_string()
+                reason: "character 'š' found".to_string()
             }
         ))
     );
@@ -197,7 +197,7 @@ fn rhai_uppercase_name() {
         package::PackageRejection::Rhai(package::RhaiRejection::Name(
             package::NameRejection::Invalid {
                 name: "MoD".to_string(),
-                reason: "Invalid character 'M' found".to_string()
+                reason: "character 'M' found".to_string()
             }
         ))
     )
