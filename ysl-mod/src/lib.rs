@@ -15,8 +15,10 @@ pub fn export(
     package::export::export(package, folder)
 }
 
-pub fn import(paths: Vec<(PathBuf, Vec<u8>)>) -> package::Package {
-    todo!()
+pub fn import(
+    paths: Vec<(PathBuf, Vec<u8>)>,
+) -> Result<package::Package, package::PackageRejection> {
+    package::import::import(paths)
 }
 
 pub fn write(package: &package::Package, flags: u16) -> Result<Vec<u8>, package::PackageRejection> {
