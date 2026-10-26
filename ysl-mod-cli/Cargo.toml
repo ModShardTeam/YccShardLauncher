@@ -1,0 +1,17 @@
+[package]
+name = "ysl-mod-cli"
+edition = "2024"
+version.workspace = true
+
+[[bin]]
+name = "yff"
+
+[dependencies]
+clap = { version = "4.6.7", features = ["derive"] }
+ysl-mod = { path = "../ysl-mod" }
+anyhow = "1.0.104"
+anstream = "1.0.0"
+anstyle = "1.0.14"
+
+[lints]
+workspace = true

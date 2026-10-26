@@ -29,7 +29,16 @@ fn main() -> Result<()> {
     let git_hash = String::from_utf8(git_output.stdout)?.trim().to_string();
 
     let build_status = Command::new(cargo)
-        .args(["build", "--release", "-p", "hook", "-p", "injector"])
+        .args([
+            "build",
+            "--release",
+            "-p",
+            "hook",
+            "-p",
+            "injector",
+            "-p",
+            "ysl-mod-cli",
+        ])
         .current_dir(main_dir)
         .env("GIT_HASH", &git_hash)
         .status()?;

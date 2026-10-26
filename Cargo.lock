@@ -1705,6 +1705,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ysl-mod-cli"
+version = "0.1.0"
+dependencies = [
+ "anstream",
+ "anstyle",
+ "anyhow",
+ "clap",
+ "ysl-mod",
+]
+
+[[package]]
 name = "zerocopy"
 version = "0.8.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
