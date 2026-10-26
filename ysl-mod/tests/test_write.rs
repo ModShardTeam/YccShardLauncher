@@ -51,7 +51,9 @@ fn reversible_valid_package_no_short_desc() {
 
 #[test]
 fn reversible_valid_package_empty_rhai() {
-    let package_to_write = common::TestPackageBuilder::new().add_rhai("ab_5c", "").build();
+    let package_to_write = common::TestPackageBuilder::new()
+        .add_rhai("ab_5c", "")
+        .build();
 
     let bytes = package::write::write(&package_to_write, 0).expect("valid operation");
     let read_package = package::read::read(&bytes).expect("valid operation");
@@ -152,12 +154,16 @@ fn missing_default_entry_point() {
 
 #[test]
 fn rhai_null_name() {
-    let package_to_write = common::TestPackageBuilder::new().add_default_rhai("").build();
+    let package_to_write = common::TestPackageBuilder::new()
+        .add_default_rhai("")
+        .build();
 
     let rej = package::write::write(&package_to_write, 0).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::Rhai(package::RhaiRejection::Name(package::NameRejection::Null))
+        package::PackageRejection::Rhai(package::RhaiRejection::Name(
+            package::NameRejection::Empty
+        ))
     );
 }
 

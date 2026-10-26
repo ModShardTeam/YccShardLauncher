@@ -16,7 +16,10 @@ fn parse_empty() {
 
 #[test]
 fn parse_not_enough_data_for_header_fourcc() {
-    let input: Vec<u8> = common::TestChunkBuilder::new().id(b"ME").remove_len().build();
+    let input: Vec<u8> = common::TestChunkBuilder::new()
+        .id(b"ME")
+        .remove_len()
+        .build();
     let rej = package::read::parse_chunk(&input).unwrap_err();
     assert_eq!(
         rej,

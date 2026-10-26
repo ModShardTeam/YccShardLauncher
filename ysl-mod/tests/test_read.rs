@@ -62,7 +62,9 @@ fn null_version_package() {
 
 #[test]
 fn version_from_the_future_package() {
-    let bytes = common::TestBytesBuilder::new().format_version(u16::MAX).build();
+    let bytes = common::TestBytesBuilder::new()
+        .format_version(u16::MAX)
+        .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
@@ -166,7 +168,7 @@ fn unknown_chunk_id_package() {
             meta: package::Metadata {
                 mod_name: "test_mod".to_string(),
                 version: semver::Version::new(1, 0, 0),
-                engine: "rhai".to_string(),
+                engine: package::Engine::Rhai,
                 entry_point: None,
                 game_version: "1.0.0".to_string(),
                 author_name: "test_author".to_string(),
@@ -266,7 +268,7 @@ fn valid_meta_package() {
         package::Metadata {
             mod_name: "test_mod".to_string(),
             version: semver::Version::new(1, 0, 0),
-            engine: "rhai".to_string(),
+            engine: package::Engine::Rhai,
             entry_point: Some("mod".to_string()),
             game_version: "1.0.0".to_string(),
             author_name: "test_author".to_string(),
@@ -343,7 +345,7 @@ fn valid_rhai_package() {
         package::Metadata {
             mod_name: "test_mod".to_string(),
             version: semver::Version::new(1, 0, 0),
-            engine: "rhai".to_string(),
+            engine: package::Engine::Rhai,
             entry_point: Some("ab_5c".to_string()),
             game_version: "1.0.0".to_string(),
             author_name: "test_author".to_string(),
@@ -393,7 +395,9 @@ fn null_rhai_name_package() {
     let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
         rej,
-        package::PackageRejection::Rhai(package::RhaiRejection::Name(package::NameRejection::Null))
+        package::PackageRejection::Rhai(package::RhaiRejection::Name(
+            package::NameRejection::Empty
+        ))
     )
 }
 
@@ -473,7 +477,7 @@ fn empty_entry_name_package() {
     assert_eq!(
         rej,
         package::PackageRejection::Entry(package::EntryRejection::Name(
-            package::NameRejection::Null
+            package::NameRejection::Empty
         ))
     )
 }

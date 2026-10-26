@@ -84,7 +84,7 @@ fn decode_rhai_payload(payload: &[u8]) -> Result<(String, String), package::Rhai
     };
 
     if name_len == 0 {
-        return Err(package::RhaiRejection::Name(package::NameRejection::Null));
+        return Err(package::RhaiRejection::Name(package::NameRejection::Empty));
     }
 
     let Some((name_bytes, rest)) = rest.split_at_checked(name_len as usize) else {

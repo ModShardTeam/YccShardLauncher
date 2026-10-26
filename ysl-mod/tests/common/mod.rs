@@ -47,10 +47,10 @@ pub fn dummy_rhai_payload(name: &[u8]) -> Vec<u8> {
     payload
 }
 
-pub struct TestTestPackageBuilder {
+pub struct TestPackageBuilder {
     mod_name: String,
     version: semver::Version,
-    engine: String,
+    engine: package::Engine,
     entry_point: Option<String>,
     game_version: String,
     author_name: String,
@@ -64,7 +64,7 @@ impl TestPackageBuilder {
         TestPackageBuilder {
             mod_name: "test_mod".to_string(),
             version: semver::Version::new(0, 1, 0),
-            engine: "rhai".to_string(),
+            engine: package::Engine::Rhai,
             entry_point: None,
             game_version: "1.0.0".to_string(),
             author_name: "test_author".to_string(),
@@ -84,8 +84,8 @@ impl TestPackageBuilder {
         self
     }
 
-    pub fn engine(&mut self, engine: &str) -> &mut Self {
-        self.engine = engine.to_string();
+    pub fn engine(&mut self, engine: package::Engine) -> &mut Self {
+        self.engine = engine;
         self
     }
 

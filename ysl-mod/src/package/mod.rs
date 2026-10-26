@@ -1,10 +1,14 @@
+pub mod builder;
+pub mod export;
 pub mod read;
 pub mod validate;
 pub mod write;
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, error::Error, fmt};
 
 use serde::{Deserialize, Serialize};
+
+use crate::package;
 
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
@@ -14,13 +18,49 @@ pub enum ChunkRejection {
     TooBigChunk { declared: usize },
 }
 
+impl fmt::Display for ChunkRejection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ChunkRejection::NotEnoughDataHeader { needed, available } => todo!(),
+            ChunkRejection::NotEnoughDataPayload {
+                declared,
+                available,
+            } => todo!(),
+            ChunkRejection::TooBigChunk { declared } => write!(
+                f,
+                "Chunk declared with size {declared} exceeding maximum size of {}",
+                package::MAXIMUM_CHUNK_SIZE
+            ),
+        }
+    }
+}
+
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum NameRejection {
-    Null,
+    Empty,
     NameLenPastEnd { declared: usize, available: usize },
     TooLong { name: String, len: usize },
     Invalid { name: String, reason: String },
+}
+
+impl fmt::Display for NameRejection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NameRejection::Empty => write!(f, "Empty name found"),
+            NameRejection::NameLenPastEnd {
+                declared,
+                available,
+            } => write!(
+                f,
+                "Name bigger than the rest of the payload, declared {declared} but only {available} available"
+            ),
+            NameRejection::TooLong { name, len } => {
+                write!(f, "Name {name} longer than its declared len of {len}")
+            }
+            NameRejection::Invalid { name, reason } => write!(f, "Invalid {name}: {reason}"),
+        }
+    }
 }
 
 #[non_exhaustive]
@@ -57,6 +97,9 @@ pub enum PackageRejection {
     MultipleMetaChunkFound,
     KnownButUnsupportedId { found: FourCC },
 
+    // mod name related rejection
+    ModName(NameRejection),
+
     // entry point related rejection
     Entry(EntryRejection),
 
@@ -85,6 +128,56 @@ impl From<EntryRejection> for PackageRejection {
         PackageRejection::Entry(value)
     }
 }
+
+impl fmt::Display for PackageRejection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            PackageRejection::NotEnoughDataHeader { needed, available } => write!(f, ""),
+            PackageRejection::BadMagic { found } => write!(f, "BadMagic found {found:?}"),
+            PackageRejection::UnsupportedVersion { found } => {
+                write!(f, "Unsupported Version {found}")
+            }
+            PackageRejection::UnknownBits { found } => write!(
+                f,
+                "Unknown flag {found}, currently supported is {}",
+                package::KNOWN_MASK
+            ),
+            PackageRejection::InvalidSizeFile {
+                declared,
+                available,
+            } => write!(
+                f,
+                "File declared with size {declared} but found {available}"
+            ),
+            PackageRejection::TooBigFile { declared } => {
+                write!(
+                    f,
+                    "File declared with size {declared}, exceeding maximum {}",
+                    package::MAXIMUM_FILE_SIZE
+                )
+            }
+            PackageRejection::Chunk(chunk_rejection) => write!(f, "In chunk {}", chunk_rejection),
+            PackageRejection::NoMetaChunk => write!(f, "No Metadata chunk found"),
+            PackageRejection::MultipleMetaChunkFound => write!(f, "Multiple Metadata chunk found"),
+            PackageRejection::KnownButUnsupportedId { found } => {
+                write!(f, "Chunk {found:?} is known but currently unsupported")
+            }
+            PackageRejection::Entry(entry_rejection) => write!(f, ""),
+            PackageRejection::InvalidDeserMetadata(error) => {
+                write!(f, "While deserializing: {error:#}")
+            }
+            PackageRejection::InvalidSerMetadata(error) => {
+                write!(f, "While serializing: {error:#}")
+            }
+            PackageRejection::Rhai(rhai_rejection) => write!(f, ""),
+            PackageRejection::ModName(name_rejection) => {
+                write!(f, "Invalid mod name: {}", name_rejection)
+            }
+        }
+    }
+}
+
+impl Error for PackageRejection {}
 
 #[non_exhaustive]
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -185,12 +278,19 @@ impl<'a> From<&'a ChunkBuf> for Chunk<'a> {
     }
 }
 
+#[derive(Serialize, Deserialize, Debug, PartialEq, Clone, Copy)]
+#[serde(rename_all = "lowercase")]
+pub enum Engine {
+    Rhai,
+    Lua,
+}
+
 #[derive(Serialize, Deserialize, Debug, PartialEq, Clone)]
 #[serde(deny_unknown_fields)]
 pub struct Metadata {
     pub mod_name: String,
     pub version: semver::Version,
-    pub engine: String,
+    pub engine: Engine,
     #[serde(default)]
     pub entry_point: Option<String>,
     pub game_version: String,

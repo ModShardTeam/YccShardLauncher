@@ -12,7 +12,7 @@ pub fn is_valid_name_byte(b: u8) -> bool {
 
 fn validate_name(name: &str) -> Result<(), package::NameRejection> {
     if name.is_empty() {
-        return Err(package::NameRejection::Null);
+        return Err(package::NameRejection::Empty);
     }
 
     if u8::try_from(name.len()).is_err() {
@@ -44,6 +44,8 @@ fn validate_name(name: &str) -> Result<(), package::NameRejection> {
 }
 
 pub fn validate_package(package: &package::Package) -> Result<(), package::PackageRejection> {
+    validate_name(&package.meta.mod_name).map_err(package::PackageRejection::ModName)?;
+
     let expected_entry_point = package.entry();
     validate_name(expected_entry_point).map_err(package::EntryRejection::Name)?;
     if !package.rhai_scripts.contains_key(expected_entry_point) {
