@@ -3,7 +3,7 @@ use ysl_mod::package;
 
 #[test]
 fn parse_empty() {
-    let input: Vec<u8> = common::ChunkBuilder::new().remove_len().build();
+    let input: Vec<u8> = common::TestChunkBuilder::new().remove_len().build();
     let rej = package::read::parse_chunk(&input).unwrap_err();
     assert_eq!(
         rej,
@@ -16,7 +16,7 @@ fn parse_empty() {
 
 #[test]
 fn parse_not_enough_data_for_header_fourcc() {
-    let input: Vec<u8> = common::ChunkBuilder::new().id(b"ME").remove_len().build();
+    let input: Vec<u8> = common::TestChunkBuilder::new().id(b"ME").remove_len().build();
     let rej = package::read::parse_chunk(&input).unwrap_err();
     assert_eq!(
         rej,
@@ -29,7 +29,7 @@ fn parse_not_enough_data_for_header_fourcc() {
 
 #[test]
 fn parse_not_enough_data_for_header_len() {
-    let input: Vec<u8> = common::ChunkBuilder::new()
+    let input: Vec<u8> = common::TestChunkBuilder::new()
         .id(common::ID_META)
         .arbitrary_len(&[0x00, 0x01, 0x02])
         .build();
@@ -45,7 +45,7 @@ fn parse_not_enough_data_for_header_len() {
 
 #[test]
 fn parse_empty_payload() {
-    let input: Vec<u8> = common::ChunkBuilder::new().id(common::ID_RHAI).build();
+    let input: Vec<u8> = common::TestChunkBuilder::new().id(common::ID_RHAI).build();
     let (parsed_chunk, rest) = package::read::parse_chunk(&input).expect("valid operation");
     assert_eq!(
         parsed_chunk,
@@ -59,7 +59,7 @@ fn parse_empty_payload() {
 
 #[test]
 fn parse_not_enough_data_for_payload() {
-    let input: Vec<u8> = common::ChunkBuilder::new()
+    let input: Vec<u8> = common::TestChunkBuilder::new()
         .id(common::ID_META)
         .len(3)
         .payload(&[0xA0])
@@ -76,7 +76,7 @@ fn parse_not_enough_data_for_payload() {
 
 #[test]
 fn parse_valid_chunk() {
-    let input: Vec<u8> = common::ChunkBuilder::new()
+    let input: Vec<u8> = common::TestChunkBuilder::new()
         .id(common::ID_META)
         .len(3)
         .payload(&[0xA0, 0xA1, 0xA2])
@@ -94,7 +94,7 @@ fn parse_valid_chunk() {
 
 #[test]
 fn parse_valid_chunk_extra_byte() {
-    let input: Vec<u8> = common::ChunkBuilder::new()
+    let input: Vec<u8> = common::TestChunkBuilder::new()
         .id(common::ID_META)
         .len(3)
         .payload(&[0xA0, 0xA1, 0xA2, 0xA3])
@@ -112,7 +112,7 @@ fn parse_valid_chunk_extra_byte() {
 
 #[test]
 fn parse_len_max() {
-    let input: Vec<u8> = common::ChunkBuilder::new()
+    let input: Vec<u8> = common::TestChunkBuilder::new()
         .id(common::ID_META)
         .len(u32::MAX)
         .payload(&[0xA0, 0xA1, 0xA2])
@@ -131,13 +131,13 @@ fn parse_len_max() {
 fn parse_consecutive_chunks() {
     let mut input: Vec<u8> = vec![];
     input.extend_from_slice(
-        &common::ChunkBuilder::new()
+        &common::TestChunkBuilder::new()
             .id(common::ID_META)
             .payload(&[0xA0, 0xA1, 0xA2])
             .build(),
     );
     input.extend_from_slice(
-        &common::ChunkBuilder::new()
+        &common::TestChunkBuilder::new()
             .id(common::ID_RHAI)
             .payload(&[0xB0, 0xB1, 0xB2, 0xB3])
             .build(),
@@ -168,13 +168,13 @@ fn parse_consecutive_chunks() {
 fn parse_iterator_stop() {
     let mut input: Vec<u8> = vec![];
     input.extend_from_slice(
-        &common::ChunkBuilder::new()
+        &common::TestChunkBuilder::new()
             .id(common::ID_META)
             .payload(&[0xA0, 0xA1, 0xA2])
             .build(),
     );
     input.extend_from_slice(
-        &common::ChunkBuilder::new()
+        &common::TestChunkBuilder::new()
             .id(common::ID_META)
             .remove_len()
             .build(),

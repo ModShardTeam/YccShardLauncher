@@ -47,7 +47,7 @@ pub fn dummy_rhai_payload(name: &[u8]) -> Vec<u8> {
     payload
 }
 
-pub struct PackageBuilder {
+pub struct TestTestPackageBuilder {
     mod_name: String,
     version: semver::Version,
     engine: String,
@@ -59,9 +59,9 @@ pub struct PackageBuilder {
     rhai_scripts: BTreeMap<String, String>,
 }
 
-impl PackageBuilder {
+impl TestPackageBuilder {
     pub fn new() -> Self {
-        PackageBuilder {
+        TestPackageBuilder {
             mod_name: "test_mod".to_string(),
             version: semver::Version::new(0, 1, 0),
             engine: "rhai".to_string(),
@@ -171,15 +171,15 @@ enum ChunkLen {
     Set(Vec<u8>),
 }
 
-pub struct ChunkBuilder {
+pub struct TestChunkBuilder {
     id: Vec<u8>,
     len: ChunkLen,
     payload: Vec<u8>,
 }
 
-impl ChunkBuilder {
+impl TestChunkBuilder {
     pub fn new() -> Self {
-        ChunkBuilder {
+        TestChunkBuilder {
             id: vec![],
             len: ChunkLen::Computed,
             payload: vec![],
@@ -228,7 +228,7 @@ impl ChunkBuilder {
     }
 }
 
-pub struct BytesBuilder {
+pub struct TestBytesBuilder {
     magic: [u8; 4],
     format_version: u16,
     flags: u16,
@@ -236,9 +236,9 @@ pub struct BytesBuilder {
     chunks: Vec<u8>,
 }
 
-impl BytesBuilder {
+impl TestBytesBuilder {
     pub fn new() -> Self {
-        BytesBuilder {
+        TestBytesBuilder {
             magic: *b"YFF\0",
             format_version: 0,
             flags: 0,

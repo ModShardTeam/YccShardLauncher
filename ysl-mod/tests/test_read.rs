@@ -5,7 +5,7 @@ use ysl_mod::package;
 
 #[test]
 fn reversible_read_write_from_lib() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -21,7 +21,7 @@ fn reversible_read_write_from_lib() {
 
 #[test]
 fn reversible_read_write() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -37,7 +37,7 @@ fn reversible_read_write() {
 
 #[test]
 fn bad_magic_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .magic(*b"BAD\0")
         .format_version(1)
         .build();
@@ -51,7 +51,7 @@ fn bad_magic_package() {
 
 #[test]
 fn null_version_package() {
-    let bytes = common::BytesBuilder::new().format_version(0).build();
+    let bytes = common::TestBytesBuilder::new().format_version(0).build();
 
     let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
@@ -62,7 +62,7 @@ fn null_version_package() {
 
 #[test]
 fn version_from_the_future_package() {
-    let bytes = common::BytesBuilder::new().format_version(u16::MAX).build();
+    let bytes = common::TestBytesBuilder::new().format_version(u16::MAX).build();
 
     let rej = package::read::read(&bytes).unwrap_err();
     assert_eq!(
@@ -73,7 +73,7 @@ fn version_from_the_future_package() {
 
 #[test]
 fn unknown_low_byte_flag_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .flags(0b0000_0000_1100_0000)
         .build();
@@ -89,7 +89,7 @@ fn unknown_low_byte_flag_package() {
 
 #[test]
 fn unknown_high_byte_flag_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .flags(0b0000_1101_0000_0000)
         .build();
@@ -105,10 +105,10 @@ fn unknown_high_byte_flag_package() {
 
 #[test]
 fn parse_too_long_len_file() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .len(250)
-        .add_arbitrary_chunk(&common::ChunkBuilder::new().id(b"TEST").build())
+        .add_arbitrary_chunk(&common::TestChunkBuilder::new().id(b"TEST").build())
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -123,10 +123,10 @@ fn parse_too_long_len_file() {
 
 #[test]
 fn parse_too_small_len_file() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .len(2)
-        .add_arbitrary_chunk(&common::ChunkBuilder::new().id(b"TEST").build())
+        .add_arbitrary_chunk(&common::TestChunkBuilder::new().id(b"TEST").build())
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -141,18 +141,18 @@ fn parse_too_small_len_file() {
 
 #[test]
 fn unknown_chunk_id_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(None, "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_arbitrary_chunk(
-            &common::ChunkBuilder::new()
+            &common::TestChunkBuilder::new()
                 .id(b"NOT\0")
                 .payload(&[0xB0, 0xB1, 0xB2])
                 .build(),
         )
         .add_arbitrary_chunk(
-            &common::ChunkBuilder::new()
+            &common::TestChunkBuilder::new()
                 .id(b"TEST")
                 .payload(&[0xC0, 0xC1, 0xC2])
                 .build(),
@@ -205,12 +205,12 @@ fn unknown_chunk_id_package() {
 
 #[test]
 fn partial_header_chunk_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(None, "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_arbitrary_chunk(
-            &common::ChunkBuilder::new()
+            &common::TestChunkBuilder::new()
                 .id(common::ID_RHAI)
                 .arbitrary_len(&[0x01])
                 .build(),
@@ -229,12 +229,12 @@ fn partial_header_chunk_package() {
 
 #[test]
 fn overrun_chunk_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(None, "1.0.0", "=1.0")
         .add_default_rhai("mod")
         .add_arbitrary_chunk(
-            &common::ChunkBuilder::new()
+            &common::TestChunkBuilder::new()
                 .id(common::ID_RHAI)
                 .len(100)
                 .payload(&[0x01, b'a', 0x01])
@@ -254,7 +254,7 @@ fn overrun_chunk_package() {
 
 #[test]
 fn valid_meta_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -307,7 +307,7 @@ fn valid_meta_package() {
 
 #[test]
 fn no_meta_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_default_rhai("mod")
         .build();
@@ -318,7 +318,7 @@ fn no_meta_package() {
 
 #[test]
 fn two_metas_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_meta(Some("mod"), "1.0.0", "=1.0")
@@ -331,7 +331,7 @@ fn two_metas_package() {
 
 #[test]
 fn valid_rhai_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("ab_5c"), "1.0.0", "=1.0")
         .add_default_rhai("ab_5c")
@@ -384,7 +384,7 @@ fn valid_rhai_package() {
 
 #[test]
 fn null_rhai_name_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("")
@@ -399,7 +399,7 @@ fn null_rhai_name_package() {
 
 #[test]
 fn reserved_device_rhai_name_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -420,7 +420,7 @@ fn reserved_device_rhai_name_package() {
 
 #[test]
 fn invalid_char_rhai_name_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("y;u")
@@ -441,7 +441,7 @@ fn invalid_char_rhai_name_package() {
 
 #[test]
 fn uppercase_char_rhai_name_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -462,7 +462,7 @@ fn uppercase_char_rhai_name_package() {
 
 #[test]
 fn empty_entry_name_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some(""), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -480,7 +480,7 @@ fn empty_entry_name_package() {
 
 #[test]
 fn invalid_entry_name_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("moš"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -500,7 +500,7 @@ fn invalid_entry_name_package() {
 
 #[test]
 fn missing_entry_name_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("ab_5c"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -517,7 +517,7 @@ fn missing_entry_name_package() {
 
 #[test]
 fn uppercase_entry_name_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("AB_5C"), "1.0.0", "=1.0")
         .add_default_rhai("ab_5c")
@@ -537,7 +537,7 @@ fn uppercase_entry_name_package() {
 
 #[test]
 fn neither_entry_name_nor_mod_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(None, "1.0.0", "=1.0")
         .add_default_rhai("ab_5c")
@@ -554,7 +554,7 @@ fn neither_entry_name_nor_mod_package() {
 
 #[test]
 fn duplicate_names_rhai_script_package() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
@@ -572,11 +572,11 @@ fn duplicate_names_rhai_script_package() {
 
 #[test]
 fn unsupported_lua() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
-        .add_arbitrary_chunk(&common::ChunkBuilder::new().id(b"LUA\0").build())
+        .add_arbitrary_chunk(&common::TestChunkBuilder::new().id(b"LUA\0").build())
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -590,11 +590,11 @@ fn unsupported_lua() {
 
 #[test]
 fn unsupported_png() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=1.0")
         .add_default_rhai("mod")
-        .add_arbitrary_chunk(&common::ChunkBuilder::new().id(b"PNG\0").build())
+        .add_arbitrary_chunk(&common::TestChunkBuilder::new().id(b"PNG\0").build())
         .build();
 
     let rej = package::read::read(&bytes).unwrap_err();
@@ -608,7 +608,7 @@ fn unsupported_png() {
 
 #[test]
 fn invalid_version() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0", "=1.0")
         .add_default_rhai("mod")
@@ -628,7 +628,7 @@ fn invalid_version() {
 
 #[test]
 fn invalid_req() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_meta(Some("mod"), "1.0.0", "=>1")
         .add_default_rhai("mod")
@@ -648,10 +648,10 @@ fn invalid_req() {
 
 #[test]
 fn missing_required_fields() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_arbitrary_chunk(
-            &common::ChunkBuilder::new()
+            &common::TestChunkBuilder::new()
                 .id(common::ID_META)
                 .payload(b"mod_name = 'test_mod'")
                 .build(),
@@ -670,10 +670,10 @@ fn missing_required_fields() {
 
 #[test]
 fn unknown_field() {
-    let bytes = common::BytesBuilder::new()
+    let bytes = common::TestBytesBuilder::new()
         .format_version(1)
         .add_arbitrary_chunk(
-            &common::ChunkBuilder::new()
+            &common::TestChunkBuilder::new()
                 .id(common::ID_META)
                 .payload(
                     br#"mod_name = "test_mod"
