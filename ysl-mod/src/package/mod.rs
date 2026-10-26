@@ -73,6 +73,22 @@ pub enum RhaiRejection {
     DuplicateName { found: String },
 }
 
+impl fmt::Display for RhaiRejection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RhaiRejection::Name(name_rejection) => {
+                write!(f, "Invalid rhai name got: {name_rejection}")
+            }
+            RhaiRejection::NullPayload => write!(f, "Invalid rhai chunk, empty payload"),
+            RhaiRejection::InvalidByteName { name, reason } => todo!(),
+            RhaiRejection::InvalidScript { name, reason } => todo!(),
+            RhaiRejection::DuplicateName { found } => {
+                write!(f, "Found multiple rhai scripts with the same name {found}")
+            }
+        }
+    }
+}
+
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum EntryRejection {
@@ -80,9 +96,25 @@ pub enum EntryRejection {
     None { expected: String },
 }
 
+impl fmt::Display for EntryRejection {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            EntryRejection::Name(name_rejection) => {
+                write!(f, "Invalid entry name got: {name_rejection}")
+            }
+            EntryRejection::None { expected } => {
+                write!(f, "No entry name found, expected: {expected}")
+            }
+        }
+    }
+}
+
 #[non_exhaustive]
 #[derive(Debug, PartialEq)]
 pub enum PackageRejection {
+    InvalidFolder { folder: String, reason: String },
+    NonEmptyFolder { folder: String },
+
     // raw data related rejections
     NotEnoughDataHeader { needed: usize, available: usize },
     BadMagic { found: [u8; 4] },
@@ -132,7 +164,16 @@ impl From<EntryRejection> for PackageRejection {
 impl fmt::Display for PackageRejection {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            PackageRejection::NotEnoughDataHeader { needed, available } => write!(f, ""),
+            PackageRejection::InvalidFolder { folder, reason } => {
+                write!(f, "Invalid destination {folder}: {reason}")
+            }
+            PackageRejection::NonEmptyFolder { folder } => {
+                write!(f, "Folder {folder} is not empty")
+            }
+            PackageRejection::NotEnoughDataHeader { needed, available } => write!(
+                f,
+                "Incomplete header, expected {needed} but {available} available"
+            ),
             PackageRejection::BadMagic { found } => write!(f, "BadMagic found {found:?}"),
             PackageRejection::UnsupportedVersion { found } => {
                 write!(f, "Unsupported Version {found}")
@@ -162,14 +203,18 @@ impl fmt::Display for PackageRejection {
             PackageRejection::KnownButUnsupportedId { found } => {
                 write!(f, "Chunk {found:?} is known but currently unsupported")
             }
-            PackageRejection::Entry(entry_rejection) => write!(f, ""),
+            PackageRejection::Entry(entry_rejection) => {
+                write!(f, "Invalid entry: got {entry_rejection}")
+            }
             PackageRejection::InvalidDeserMetadata(error) => {
                 write!(f, "While deserializing: {error:#}")
             }
             PackageRejection::InvalidSerMetadata(error) => {
                 write!(f, "While serializing: {error:#}")
             }
-            PackageRejection::Rhai(rhai_rejection) => write!(f, ""),
+            PackageRejection::Rhai(rhai_rejection) => {
+                write!(f, "Invalid rhai script got: {rhai_rejection}")
+            }
             PackageRejection::ModName(name_rejection) => {
                 write!(f, "Invalid mod name: {}", name_rejection)
             }

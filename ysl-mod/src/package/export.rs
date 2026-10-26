@@ -9,13 +9,34 @@ pub fn export(
     package::validate::validate_package(package)?;
 
     let mut path_data = vec![];
-    //TODO: test if folder exist
-    //TODO: test if folder is a folder
-    //TODO: test if folder is empty
 
-    let root = &package.meta.mod_name;
+    if !folder.is_dir() {
+        return Err(package::PackageRejection::InvalidFolder {
+            folder: format!("{folder:?}"),
+            reason: "not a directory".to_string(),
+        });
+    }
+
+    let root = folder.join(&package.meta.mod_name);
+
+    if root.exists() {
+        if root
+            .read_dir()
+            .map_err(|e| package::PackageRejection::InvalidFolder {
+                folder: format!("{root:?}"),
+                reason: format!("{e:#}"),
+            })?
+            .next()
+            .is_some()
+        {
+            return Err(package::PackageRejection::NonEmptyFolder {
+                folder: format!("{root:?}"),
+            });
+        }
+    }
+
     path_data.push((
-        folder.join(format!("{root}/mod.toml")),
+        root.join("mod.toml"),
         toml::to_string(&package.meta)
             .map_err(package::PackageRejection::InvalidSerMetadata)?
             .as_bytes()
@@ -24,7 +45,7 @@ pub fn export(
 
     for (name, data) in &package.rhai_scripts {
         path_data.push((
-            folder.join(format!("{root}/rhai/{name}.rhai")),
+            root.join(format!("rhai/{name}.rhai")),
             data.as_bytes().to_vec(),
         ));
     }
