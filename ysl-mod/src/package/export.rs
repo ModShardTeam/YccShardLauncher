@@ -19,7 +19,8 @@ pub fn export(
 
     let root = folder.join(&package.meta.mod_name);
 
-    if root.exists() && root
+    if root.exists()
+        && root
             .read_dir()
             .map_err(|e| package::PackageRejection::InvalidFolder {
                 folder: format!("{root:?}"),
@@ -27,11 +28,10 @@ pub fn export(
             })?
             .next()
             .is_some()
-        {
-            return Err(package::PackageRejection::NonEmptyFolder {
-                folder: format!("{root:?}"),
-            });
-
+    {
+        return Err(package::PackageRejection::NonEmptyFolder {
+            folder: format!("{root:?}"),
+        });
     }
 
     path_data.push((
